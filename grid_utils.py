@@ -11,6 +11,7 @@ from netCDF4 import Dataset
 def read_grid_information(base_path):
     """
     Read grid information from grids.nc file.
+    Process it to create a reduced Gaussian grid structure.
     
     Parameters
     ----------
@@ -20,7 +21,7 @@ def read_grid_information(base_path):
     Returns
     -------
     dict or None
-        Dictionary with 'lat' and 'lon' arrays if successful, None otherwise.
+        Dictionary with grid information if successful, None otherwise.
     """
     grid_file = os.path.join(base_path, 'grids.nc')
     if not os.path.exists(grid_file):
@@ -35,22 +36,31 @@ def read_grid_information(base_path):
         tl_lat = grid_data.variables['TL255-land.lat'][:].flatten()
         tl_lon = grid_data.variables['TL255-land.lon'][:].flatten()
         
-        # Sort the coordinates for consistency
-        sorted_indices = np.lexsort((tl_lon, tl_lat))
-        sorted_lat = tl_lat[sorted_indices]
-        sorted_lon = tl_lon[sorted_indices]
+        # Get unique values for latitude and longitude
+        unique_lat = np.unique(tl_lat)
+        unique_lon = np.unique(tl_lon)
         
-        # Get unique values
-        unique_lat = np.unique(sorted_lat)
-        unique_lon = np.unique(sorted_lon)
+        # Create a reduced Gaussian grid structure
+        # For each latitude, find all associated longitudes
+        reduced_grid = {}
+        for lat in unique_lat:
+            # Get indices where this latitude appears
+            lat_indices = np.where(tl_lat == lat)[0]
+            # Get the corresponding longitudes
+            lons_at_lat = tl_lon[lat_indices]
+            # Sort the longitudes
+            lons_at_lat = np.sort(lons_at_lat)
+            # Store in the reduced grid dictionary
+            reduced_grid[lat] = lons_at_lat
         
         grid_data.close()
         
         return {
-            'lat': unique_lat,
-            'lon': unique_lon,
-            'full_lat': sorted_lat,
-            'full_lon': sorted_lon
+            'lat': unique_lat,  # All unique latitudes
+            'lon': unique_lon,  # All unique longitudes (for reference)
+            'full_lat': tl_lat,  # Full flattened array of latitudes
+            'full_lon': tl_lon,  # Full flattened array of longitudes
+            'reduced_grid': reduced_grid  # Dict mapping each latitude to its longitudes
         }
     except Exception as e:
         print(f"Warning: Error reading grid file: {e}. Using coordinates from .out files.")

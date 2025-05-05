@@ -17,14 +17,7 @@ import numpy as np
 import xarray as xr
 from pathlib import Path
 import re
-
-# Try to import tqdm (for progress bars)
-try:
-    from tqdm import tqdm
-except ImportError:
-    print("Installing tqdm for progress bars...")
-    os.system("pip install --user tqdm")
-    from tqdm import tqdm
+from tqdm import tqdm
 
 # Import from our modules
 from grid_utils import read_grid_information
@@ -46,8 +39,8 @@ def parse_args():
         help='Specific file to process (for testing)'
     )
     parser.add_argument(
-        '-o', '--output', type=str, default='./netcdf_output',
-        help='Output directory for NetCDF files (default: ./netcdf_output)'
+        '-o', '--output', type=str, default=None,
+        help='Output directory for NetCDF files (default: "../../outdata/lpj_guess" relative to input path)'
     )
     parser.add_argument(
         '-v', '--verbose', action='store_true',
@@ -120,6 +113,15 @@ def main():
     total_start_time = time.time()
     
     args = parse_args()
+    
+    # Set default output path if not specified
+    if args.output is None:
+        # Use "../../outdata/lpj_guess" relative to the input path
+        input_path = os.path.abspath(args.path)
+        output_path = os.path.normpath(os.path.join(input_path, "../../outdata/lpj_guess"))
+        args.output = output_path
+        if args.verbose:
+            print(f"Using default output path: {args.output}")
     
     # Create output directory if it doesn't exist
     os.makedirs(args.output, exist_ok=True)
