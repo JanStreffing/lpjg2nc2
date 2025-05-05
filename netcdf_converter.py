@@ -98,39 +98,100 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
         else:
             var_data = np.full((len(years), len(grid_lats), len(grid_lons)), np.nan)
         
-        # Fill the array with data using vectorized operations where possible
-        if len(combined_df) > 10000 and verbose:
-            print(f"  > Processing large dataset for {var_col} ({len(combined_df)} rows)")
-            # Use progress bar for large datasets
-            for i, row in tqdm(combined_df.iterrows(), total=len(combined_df), 
-                              desc=f"  > Variable {var_col}", disable=not verbose):
-                # Find the closest grid points
-                lon_idx = np.abs(grid_lons - row['Lon']).argmin()
-                lat_idx = np.abs(grid_lats - row['Lat']).argmin()
-                
-                if has_day:
-                    year_idx = np.where(years == row['Year'])[0][0]
-                    day_idx = np.where(days == row['Day'])[0][0]
-                    time_idx = year_idx * len(days) + day_idx
-                    var_data[time_idx, lat_idx, lon_idx] = row[var_col]
-                else:
-                    year_idx = np.where(years == row['Year'])[0][0]
-                    var_data[year_idx, lat_idx, lon_idx] = row[var_col]
+        # Fill the array with data using vectorized operations
+        if verbose:
+            print(f"  > Processing dataset for {var_col} using vectorized operations")
+        
+        # Get all coordinates as arrays
+        lons_array = combined_df['Lon'].values
+        lats_array = combined_df['Lat'].values
+        years_array = combined_df['Year'].values
+        values_array = combined_df[var_col].values
+        
+        # Chunked vectorized calculation of grid indices
+        t_start = time.time()
+        if verbose:
+            print("    Finding nearest longitude indices using chunked processing...")
+        
+        # Process in chunks to avoid memory issues
+        chunk_size = 100000  # Adjust based on available memory
+        num_chunks = int(np.ceil(len(lons_array) / chunk_size))
+        
+        # Initialize arrays for indices
+        lon_indices = np.zeros(len(lons_array), dtype=int)
+        lat_indices = np.zeros(len(lats_array), dtype=int)
+        
+        for chunk_idx in tqdm(range(num_chunks), desc="Processing coordinate chunks", disable=not verbose):
+            # Get chunk slice
+            start_idx = chunk_idx * chunk_size
+            end_idx = min(start_idx + chunk_size, len(lons_array))
+            
+            # Process longitude indices for this chunk
+            chunk_lons = lons_array[start_idx:end_idx]
+            for i, lon in enumerate(chunk_lons):
+                lon_indices[start_idx + i] = np.abs(grid_lons - lon).argmin()
+        
+        if verbose:
+            print(f"    Longitude mapping: {time.time() - t_start:.2f} seconds")
+            print("    Finding nearest latitude indices...")
+            t_start = time.time()
+        
+        # Process latitude indices in chunks
+        for chunk_idx in tqdm(range(num_chunks), desc="Processing latitude chunks", disable=not verbose):
+            # Get chunk slice
+            start_idx = chunk_idx * chunk_size
+            end_idx = min(start_idx + chunk_size, len(lats_array))
+            
+            # Process latitude indices for this chunk
+            chunk_lats = lats_array[start_idx:end_idx]
+            for i, lat in enumerate(chunk_lats):
+                lat_indices[start_idx + i] = np.abs(grid_lats - lat).argmin()
+        
+        if verbose:
+            print(f"    Latitude mapping: {time.time() - t_start:.2f} seconds")
+            print("    Mapping time coordinates...")
+            t_start = time.time()
+        
+        # Calculate time indices
+        if has_day:
+            days_array = combined_df['Day'].values
+            
+            # Map years to indices (vectorized)
+            year_indices = np.zeros_like(years_array, dtype=int)
+            for i, year in enumerate(years):
+                year_indices[years_array == year] = i
+            
+            # Map days to indices (vectorized)
+            day_indices = np.zeros_like(days_array, dtype=int)
+            for i, day in enumerate(days):
+                day_indices[days_array == day] = i
+            
+            # Calculate final time indices
+            time_indices = year_indices * len(days) + day_indices
         else:
-            # Process without inner progress bar for smaller datasets
-            for i, row in combined_df.iterrows():
-                # Find the closest grid points
-                lon_idx = np.abs(grid_lons - row['Lon']).argmin()
-                lat_idx = np.abs(grid_lats - row['Lat']).argmin()
-                
-                if has_day:
-                    year_idx = np.where(years == row['Year'])[0][0]
-                    day_idx = np.where(days == row['Day'])[0][0]
-                    time_idx = year_idx * len(days) + day_idx
-                    var_data[time_idx, lat_idx, lon_idx] = row[var_col]
-                else:
-                    year_idx = np.where(years == row['Year'])[0][0]
-                    var_data[year_idx, lat_idx, lon_idx] = row[var_col]
+            # Map years to indices (vectorized)
+            time_indices = np.zeros_like(years_array, dtype=int)
+            for i, year in enumerate(years):
+                time_indices[years_array == year] = i
+        
+        if verbose:
+            print(f"    Time mapping: {time.time() - t_start:.2f} seconds")
+            print("    Filling data array...")
+            t_start = time.time()
+        
+        # Now fill the array (remaining loop is over individual points but much faster)
+        # Use a mask to handle potential duplicates or missing values
+        if has_day:
+            # We still need to iterate here because we have 3 indices
+            # Could be optimized further with sparse representations but this is a good balance
+            for i in tqdm(range(len(time_indices)), disable=not verbose):
+                var_data[time_indices[i], lat_indices[i], lon_indices[i]] = values_array[i]
+        else:
+            for i in tqdm(range(len(time_indices)), disable=not verbose):
+                var_data[time_indices[i], lat_indices[i], lon_indices[i]] = values_array[i]
+        
+        if verbose:
+            print(f"    Data filling: {time.time() - t_start:.2f} seconds")
         
         # Add to data variables
         if has_day:
@@ -290,46 +351,100 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False):
     if verbose:
         print(f"Processing {len(combined_df)} data points across {len(depths)} depth levels...")
     
-    # Fill the array with data
-    if len(combined_df) > 10000 and verbose:
-        # Use progress bar for large datasets
-        for i, row in tqdm(combined_df.iterrows(), total=len(combined_df), 
-                          desc="Processing data points", disable=not verbose):
-            # Find the closest grid points
-            lon_idx = np.abs(grid_lons - row['Lon']).argmin()
-            lat_idx = np.abs(grid_lats - row['Lat']).argmin()
-            
-            if has_day:
-                year_idx = np.where(years == row['Year'])[0][0]
-                day_idx = np.where(days == row['Day'])[0][0]
-                time_idx = year_idx * len(days) + day_idx
-                
-                for d_idx, depth_col in enumerate(depth_cols):
-                    var_data[time_idx, d_idx, lat_idx, lon_idx] = row[depth_col]
-            else:
-                year_idx = np.where(years == row['Year'])[0][0]
-                
-                for d_idx, depth_col in enumerate(depth_cols):
-                    var_data[year_idx, d_idx, lat_idx, lon_idx] = row[depth_col]
+    # Fill the array with data using vectorized operations
+    if verbose:
+        print("Using vectorized operations to process data...")
+    
+    # Get all coordinates as arrays
+    lons_array = combined_df['Lon'].values
+    lats_array = combined_df['Lat'].values
+    years_array = combined_df['Year'].values
+    
+    # Chunked vectorized calculation of grid indices
+    t_start = time.time()
+    if verbose:
+        print("    Finding nearest longitude indices using chunked processing...")
+    
+    # Process in chunks to avoid memory issues
+    chunk_size = 100000  # Adjust based on available memory
+    num_chunks = int(np.ceil(len(lons_array) / chunk_size))
+    
+    # Initialize arrays for indices
+    lon_indices = np.zeros(len(lons_array), dtype=int)
+    lat_indices = np.zeros(len(lats_array), dtype=int)
+    
+    for chunk_idx in tqdm(range(num_chunks), desc="Processing coordinate chunks", disable=not verbose):
+        # Get chunk slice
+        start_idx = chunk_idx * chunk_size
+        end_idx = min(start_idx + chunk_size, len(lons_array))
+        
+        # Process longitude indices for this chunk
+        chunk_lons = lons_array[start_idx:end_idx]
+        for i, lon in enumerate(chunk_lons):
+            lon_indices[start_idx + i] = np.abs(grid_lons - lon).argmin()
+    
+    if verbose:
+        print(f"    Longitude mapping: {time.time() - t_start:.2f} seconds")
+        print("    Finding nearest latitude indices...")
+        t_start = time.time()
+    
+    # Process latitude indices in chunks
+    for chunk_idx in tqdm(range(num_chunks), desc="Processing latitude chunks", disable=not verbose):
+        # Get chunk slice
+        start_idx = chunk_idx * chunk_size
+        end_idx = min(start_idx + chunk_size, len(lats_array))
+        
+        # Process latitude indices for this chunk
+        chunk_lats = lats_array[start_idx:end_idx]
+        for i, lat in enumerate(chunk_lats):
+            lat_indices[start_idx + i] = np.abs(grid_lats - lat).argmin()
+    
+    if verbose:
+        print(f"    Latitude mapping: {time.time() - t_start:.2f} seconds")
+        print("    Mapping time coordinates...")
+        t_start = time.time()
+    
+    # Calculate time indices
+    if has_day:
+        days_array = combined_df['Day'].values
+        
+        # Map years to indices (vectorized)
+        year_indices = np.zeros_like(years_array, dtype=int)
+        for i, year in enumerate(years):
+            year_indices[years_array == year] = i
+        
+        # Map days to indices (vectorized)
+        day_indices = np.zeros_like(days_array, dtype=int)
+        for i, day in enumerate(days):
+            day_indices[days_array == day] = i
+        
+        # Calculate final time indices
+        time_indices = year_indices * len(days) + day_indices
     else:
-        # Process without progress bar for smaller datasets
-        for i, row in combined_df.iterrows():
-            # Find the closest grid points
-            lon_idx = np.abs(grid_lons - row['Lon']).argmin()
-            lat_idx = np.abs(grid_lats - row['Lat']).argmin()
-            
+        # Map years to indices (vectorized)
+        time_indices = np.zeros_like(years_array, dtype=int)
+        for i, year in enumerate(years):
+            time_indices[years_array == year] = i
+    
+    if verbose:
+        print(f"    Time mapping: {time.time() - t_start:.2f} seconds")
+        print("    Filling data array...")
+        t_start = time.time()
+    
+    # Now fill the array with data for each depth level
+    for d_idx, depth_col in enumerate(tqdm(depth_cols, desc="Processing depth levels", disable=not verbose)):
+        depth_values = combined_df[depth_col].values
+        
+        # For each data point, fill the value at the correct indices
+        for i in tqdm(range(len(combined_df)), desc=f"Filling depth level {d_idx+1}/{len(depth_cols)}", 
+                      disable=not verbose, leave=False):
             if has_day:
-                year_idx = np.where(years == row['Year'])[0][0]
-                day_idx = np.where(days == row['Day'])[0][0]
-                time_idx = year_idx * len(days) + day_idx
-                
-                for d_idx, depth_col in enumerate(depth_cols):
-                    var_data[time_idx, d_idx, lat_idx, lon_idx] = row[depth_col]
+                var_data[time_indices[i], d_idx, lat_indices[i], lon_indices[i]] = depth_values[i]
             else:
-                year_idx = np.where(years == row['Year'])[0][0]
-                
-                for d_idx, depth_col in enumerate(depth_cols):
-                    var_data[year_idx, d_idx, lat_idx, lon_idx] = row[depth_col]
+                var_data[time_indices[i], d_idx, lat_indices[i], lon_indices[i]] = depth_values[i]
+    
+    if verbose:
+        print(f"    Data filling: {time.time() - t_start:.2f} seconds")
     
     # Add to data variables
     if has_day:
