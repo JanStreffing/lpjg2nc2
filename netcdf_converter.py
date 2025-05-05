@@ -167,27 +167,40 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     
     # Unified time handling for all file types (daily, monthly, yearly)
     # Determine unique time values and convert all to datetime format
+    # Following user's guidance for meaningful timestamps
     years = sorted(combined_df['Year'].unique())
     
     # Create datetime objects based on available time information
     if 'Day' in combined_df.columns and 'Month' in combined_df.columns:
-        # Data has year, month and day
+        # Data has year, month and day - use the exact day
         time_groups = combined_df.groupby(['Year', 'Month', 'Day']).size().reset_index()[['Year', 'Month', 'Day']]
         times = [pd.Timestamp(year=int(year), month=int(month), day=int(day)) 
                 for year, month, day in zip(time_groups['Year'], time_groups['Month'], time_groups['Day'])]
     elif 'Day' in combined_df.columns:
-        # Data has year and day of year
+        # Data has year and day of year - use the exact day of year
         time_groups = combined_df.groupby(['Year', 'Day']).size().reset_index()[['Year', 'Day']]
         times = [pd.Timestamp(year=int(year), month=1, day=1) + pd.Timedelta(days=int(day)-1) 
                 for year, day in zip(time_groups['Year'], time_groups['Day'])]
     elif 'Month' in combined_df.columns:
-        # Data has year and month
+        # Data has year and month - use the middle of the month
         time_groups = combined_df.groupby(['Year', 'Month']).size().reset_index()[['Year', 'Month']]
-        times = [pd.Timestamp(year=int(year), month=int(month), day=1) 
-                for year, month in zip(time_groups['Year'], time_groups['Month'])]
+        times = []
+        for year, month in zip(time_groups['Year'], time_groups['Month']):
+            # Calculate days in month to find the middle day
+            year_int = int(year)
+            month_int = int(month)
+            # Find the last day of the month
+            if month_int == 12:
+                last_day = 31  # December always has 31 days
+            else:
+                last_day = (pd.Timestamp(year=year_int, month=month_int+1, day=1) - 
+                            pd.Timedelta(days=1)).day
+            # Use the middle day of the month
+            middle_day = last_day // 2
+            times.append(pd.Timestamp(year=year_int, month=month_int, day=middle_day))
     else:
-        # Data has only years
-        times = [pd.Timestamp(year=int(year), month=1, day=1) for year in years]
+        # Data has only years - use the middle of the year (July 1st)
+        times = [pd.Timestamp(year=int(year), month=7, day=1) for year in years]
     
     # Always use 'time' dimension for consistency across all file types
     time_dim = 'time'
@@ -286,10 +299,24 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
                         reshaped_data[time_idx, point_idx] = value
         
         # For unified approach with other file types, create a 2D array (time, points)
-        # and update the sorted coordinates for grid expansion later
-        sorted_lats = unique_lats
-        sorted_lons = unique_lons
+        # where 'points' is a flattened grid
+        # Create flat coordinate arrays that match the reshaped data dimensions
+        flat_lats = []
+        flat_lons = []
+        for lat_idx in range(n_lats):
+            for lon_idx in range(n_lons):
+                flat_lats.append(unique_lats[lat_idx])
+                flat_lons.append(unique_lons[lon_idx])
+        
+        # Update sorted coordinates to match the flattened grid
+        sorted_lats = np.array(flat_lats)
+        sorted_lons = np.array(flat_lons)
+        
+        # Store the variable in all_data_vars with the same dimensionality
         all_data_vars[var_name] = (('time', 'points'), reshaped_data)
+        
+        if verbose:
+            print(f"Created flattened coordinates with {len(sorted_lats)} points")
         
         if verbose:
             print(f"Processed monthly data for variable '{var_name}'")
@@ -711,14 +738,20 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
         'lon_points': ('points', sorted_lons)    # Each point has a longitude
     }
     
-    # Add time coordinates if appropriate
-    if has_day:
-        coords['time'] = times
-    else:
-        coords['year'] = years
+    # Add time coordinate with proper encoding for CDO compatibility
+    # Explicitly set the time dimension with units and calendar attributes
+    # Convert timestamps to days since a reference date
+    reference_date = pd.Timestamp('2000-01-01')
+    days_since_reference = [(t - reference_date).total_seconds() / (24 * 3600) for t in times]
     
-    # Create dataset
-    ds = xr.Dataset(data_vars, coords=coords)
+    coords['time'] = ('time', np.array(days_since_reference))
+    
+    # Also include year as a separate coordinate for convenience
+    unique_years = sorted(set([t.year for t in times]))
+    coords['year'] = np.array(unique_years)
+    
+    # Create dataset using all_data_vars
+    ds = xr.Dataset(all_data_vars, coords=coords)
     
     # Add metadata
     ds.attrs['title'] = 'LPJ-GUESS output converted to NetCDF (1D representation)'
@@ -732,6 +765,20 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
         if var_name in ds:
             ds[var_name].attrs['long_name'] = var_name
             ds[var_name].attrs['units'] = 'unknown'  # Could be updated with a metadata lookup
+    
+    # Add proper time coordinate attributes for CDO compatibility
+    # Create an explicit time variable with correct attributes for CDO
+    reference_date = pd.Timestamp('2000-01-01')
+    days_since_reference = np.array([(t - reference_date).total_seconds() / (24 * 3600) for t in times])
+    
+    # Explicitly set the time variable with proper units and encoding
+    # This is essential for CDO to recognize the time dimension
+    ds = ds.assign_coords(time=('time', days_since_reference))
+    ds['time'].attrs['standard_name'] = 'time'
+    ds['time'].attrs['long_name'] = 'time'
+    ds['time'].attrs['axis'] = 'T'
+    ds['time'].attrs['calendar'] = 'standard'
+    ds['time'].attrs['units'] = 'days since 2000-01-01 00:00:00'
     
     # Add coordinate metadata
     if 'points' in ds.coords:
@@ -834,19 +881,28 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
             expanded_data_vars[var_name] = ((dims[0], 'points'), expanded_var)
         
         # Use the expanded data and full coordinates
-        # CRITICAL FIX: Store ALL expanded variables in all_data_vars
-        # This ensures all variables from all iterations are included in the final NetCDF file
-        all_data_vars = expanded_data_vars
-        sorted_lats = full_sorted_lats
-        sorted_lons = full_sorted_lons
-        grid_name = "TL255-land"
-        total_points = len(sorted_lats)
-        
-        if verbose:
-            expansion_time = time.time() - t_expand
-            print(f"    Grid expansion took {expansion_time:.2f} seconds")
-            print(f"    Final grid has {total_points} points with {matched_count} data points")
-            print(f"    Expansion speed: {total_points / expansion_time:.0f} points/sec")
+    # CRITICAL FIX: Store ALL expanded variables in all_data_vars
+    # This ensures all variables from all iterations are included in the final NetCDF file
+    all_data_vars = expanded_data_vars
+    sorted_lats = full_sorted_lats
+    sorted_lons = full_sorted_lons
+    grid_name = "TL255-land"
+    
+    # Process time information for NetCDF
+    # For daily files with timestamps, preserve the exact times
+    # For monthly files, calculate middle of the month
+    # For yearly files, use mid-year (July 1st)
+    # Time handling approach: 
+    # - Daily files: preserve exact timestamps
+    # - Monthly files: use 15th of the month
+    # - Yearly files: use July 1st
+    total_points = len(sorted_lats)
+    
+    if verbose:
+        expansion_time = time.time() - t_expand
+        print(f"    Grid expansion took {expansion_time:.2f} seconds")
+        print(f"    Final grid has {total_points} points with {matched_count} data points")
+        print(f"    Expansion speed: {total_points / expansion_time:.0f} points/sec")
     else:
         if verbose:
             print("Creating xarray dataset with processed points only...")
@@ -935,9 +991,44 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
             # Make sure the directory exists
             os.makedirs(os.path.dirname(os.path.abspath(full_output_path)), exist_ok=True)
             
-            # Set encoding for compression
+            # Set encoding for compression and proper time coordinate
+            # Ensure time coordinate has proper CF-compliant encoding for CDO compatibility
             encoding = {var: {'zlib': True, 'complevel': 4} for var in ds.data_vars}
-            ds.to_netcdf(full_output_path, encoding=encoding)
+            
+            # Add proper time encoding
+            # This is crucial for CDO to recognize the time dimension
+            if 'time' in ds.dims and 'time' not in ds.coords:
+                # Create explicit time coordinate if missing
+                reference_date = pd.Timestamp('2000-01-01')
+                days_since_reference = [(t - reference_date).total_seconds() / (24 * 3600) for t in times]
+                ds = ds.assign_coords(time=('time', days_since_reference))
+                
+            # Ensure time has proper attributes and encoding
+            if 'time' in ds.coords:
+                # Check if time is already datetime64 format (for daily files)
+                # If so, don't add units/calendar attributes to avoid conflicts
+                if np.issubdtype(ds.time.dtype, np.datetime64):
+                    # For datetime64 time arrays, only add non-conflicting attributes
+                    # We must not add calendar or units to avoid xarray encoding conflicts
+                    ds.time.attrs.update({
+                        'standard_name': 'time',
+                        'long_name': 'time',
+                        'axis': 'T'
+                    })
+                else:
+                    # For monthly/yearly, add full set of attributes including units/calendar
+                    ds.time.attrs.update({
+                        'standard_name': 'time',
+                        'long_name': 'time',
+                        'axis': 'T',
+                        'calendar': 'standard',
+                        'units': 'days since 2000-01-01 00:00:00'
+                    })
+                # Time coordinate is already set with proper attributes
+                # No special encoding needed as units/calendar are attributes, not encoding parameters
+                
+            # Write to NetCDF with proper encoding
+            ds.to_netcdf(full_output_path, encoding=encoding, unlimited_dims=['time'])
             if verbose:
                 print(f"Successfully wrote dataset to {full_output_path}")
                 
