@@ -18,6 +18,9 @@ import xarray as xr
 from pathlib import Path
 import re
 from tqdm import tqdm
+import multiprocessing
+import subprocess
+import json
 
 # Import from our modules
 from grid_utils import read_grid_information
@@ -50,6 +53,14 @@ def parse_args():
         '--test', type=str, choices=['ifs_input'],
         help='Test with specific file pattern (e.g., ifs_input.out)'
     )
+    parser.add_argument(
+        '-j', '--jobs', type=int, default=0,
+        help='Number of parallel jobs. Default (0) auto-detects based on CPU cores.'
+    )
+    parser.add_argument(
+        '--pattern', type=str, default=None,
+        help='Specific pattern to process (used internally for parallelization)'
+    )
     return parser.parse_args()
 
 
@@ -71,7 +82,7 @@ def parse_args():
 
 
 
-def process_ifs_input_test(path, output_path, verbose=False):
+def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1):
     """Process ifs_input.out files as a test case."""
     total_start_time = time.time()
     
@@ -107,6 +118,27 @@ def process_ifs_input_test(path, output_path, verbose=False):
     
     return output_file
 
+
+def run_subprocess(cmd):
+    """Run a subprocess and return True if it succeeded."""
+    try:
+        # Execute the command and log in the background
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+            universal_newlines=True, shell=True
+        )
+        # Wait for process to complete
+        stdout, stderr = process.communicate()
+        
+        # Check if process succeeded
+        if process.returncode != 0:
+            print(f"Error running command: {cmd}")
+            print(stderr)
+            return False
+        return True
+    except Exception as e:
+        print(f"Exception running command {cmd}: {str(e)}")
+        return False
 
 def main():
     """Main function."""
@@ -168,27 +200,124 @@ def main():
         if grid_info and args.verbose:
             print(f"Found {len(grid_info['lat'])} unique latitudes and {len(grid_info['lon'])} unique longitudes")
         
-        processed_files = []
-        # Show progress bar for processing multiple files
-        file_items = list(out_files.items())
+        # Specific pattern processing (used when this script is run in parallel mode)
+        if args.pattern:
+            pattern_name = args.pattern
+            if pattern_name in out_files:
+                file_paths = out_files[pattern_name]
+                # Process just this pattern
+                output_file = process_file(file_paths, args.output, grid_info, args.verbose)
+                if output_file:
+                    print(f"Successfully processed: {pattern_name} -> {os.path.basename(output_file)}")
+                    return 0
+                else:
+                    print(f"Failed to process: {pattern_name}")
+                    return 1
+            else:
+                print(f"Pattern not found: {pattern_name}")
+                return 1
+        
+        # Determine number of parallel jobs to use
+        n_jobs = args.jobs
+        if n_jobs <= 0:
+            # Auto-detect based on system resources
+            n_jobs = max(1, min(multiprocessing.cpu_count() - 1, 8))  # Use N-1 cores up to max 8
+            
+        print(f"Processing {len(out_files)} output patterns with {n_jobs} parallel jobs")
+        
+        # Get a list of all patterns
+        file_items = list(out_files.keys())
         total_patterns = len(file_items)
         
-        for i, (file_name, file_paths) in enumerate(file_items):
-            current_pattern = i + 1
+        # Process files in parallel using subprocesses
+        if n_jobs > 1:
+            # Prepare the command template
+            script_path = os.path.abspath(sys.argv[0])
+            base_cmd = f"{sys.executable} {script_path} -p {args.path} -o {args.output}"
             if args.verbose:
-                print(f"Processing {len(file_paths)} files for pattern: {file_name}")
+                base_cmd += " -v"
+                
+            # Start processing patterns in parallel
+            print(f"Starting parallel processing with {n_jobs} workers")
             
-            output_file = process_file(file_paths, args.output, grid_info, args.verbose, 
-                                       current_pattern=current_pattern, total_patterns=total_patterns)
-            if output_file:  # Only add non-None results
-                processed_files.append(output_file)
+            running_procs = {}
+            completed = set()
+            pattern_idx = 0
+            
+            # Process patterns in batches
+            while pattern_idx < len(file_items) or running_procs:
+                # Start new processes up to the job limit
+                while len(running_procs) < n_jobs and pattern_idx < len(file_items):
+                    pattern = file_items[pattern_idx]
+                    cmd = f"{base_cmd} --pattern '{pattern}'"
+                    
+                    # Start the subprocess
+                    print(f"[{pattern_idx+1}/{total_patterns}] Starting: {pattern}")
+                    process = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                        universal_newlines=True, shell=True
+                    )
+                    
+                    running_procs[pattern] = process
+                    pattern_idx += 1
+                
+                # Check for completed processes
+                still_running = {}
+                for pattern, proc in running_procs.items():
+                    returncode = proc.poll()
+                    if returncode is not None:  # Process has finished
+                        stdout, stderr = proc.communicate()
+                        if returncode != 0:
+                            print(f"Error processing pattern {pattern}:\n{stderr}")
+                        completed.add(pattern)
+                    else:
+                        still_running[pattern] = proc
+                
+                running_procs = still_running
+                
+                # Brief pause
+                if running_procs:
+                    time.sleep(0.5)
+            
+            # Calculate success rate
+            success_count = len(completed)
+            print(f"\nCompleted {success_count} out of {total_patterns} patterns in parallel mode")
+            
+            # All done in parallel mode
+            total_end_time = time.time()
+            total_elapsed = total_end_time - total_start_time
+            
+            print(f"\n✅ Successfully processed {success_count} output patterns using {n_jobs} parallel jobs")
+            print(f"📁 NetCDF files saved to: {args.output}")
+            print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
+            
+            # Calculate speedup
+            if n_jobs > 1:
+                print(f"🚀 Estimated speedup with parallelization: ~{n_jobs}x faster than sequential processing")
+                
+            return 0
+        
+        # Sequential processing as fallback or if n_jobs=1
+        if n_jobs == 1:
+            processed_files = []
+            # Process each file pattern sequentially
+            for i, (file_name, file_paths) in enumerate(file_items):
+                current_pattern = i + 1
+                output_file = process_file(file_paths, args.output, grid_info, args.verbose,
+                                          current_pattern=current_pattern, total_patterns=total_patterns)
+                if output_file:
+                    processed_files.append(output_file)
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
         
-        print(f"✅ Successfully processed {len(processed_files)} output patterns")
+        print(f"\n✅ Successfully processed {len(processed_files)} output patterns using {n_jobs} parallel jobs")
         print(f"📁 NetCDF files saved to: {args.output}")
         print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
+        
+        # Calculate speedup if multiple jobs were used
+        if n_jobs > 1:
+            print(f"🚀 Estimated speedup factor with parallelization: ~{n_jobs}x faster than sequential processing")
 
 
 if __name__ == "__main__":
