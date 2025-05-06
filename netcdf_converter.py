@@ -129,6 +129,8 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     str
         Path to the created NetCDF file.
     """
+    # Record overall start time
+    total_start_time = time.time()
     start_time = time.time()
     
     if verbose:
@@ -143,10 +145,15 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     # Determine if the file has days
     has_day = structure['has_day']
     
-    # Read and combine all files
+    # Start reading files
+    reading_start_time = time.time()
     if verbose:
-        print("Reading and combining files...")
+        print("Reading and combining data from all input files...")
     combined_df = read_and_combine_files(file_paths)
+    
+    # Calculate reading time
+    reading_end_time = time.time()
+    reading_time = reading_end_time - reading_start_time
     
     # Get coordinates
     lons = combined_df['Lon'].values
@@ -332,6 +339,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     # Always use 'time' dimension for consistency across all file types
     time_dim = 'time'
     
+    # Record coordinate processing start time
+    coord_start_time = time.time()
+    
     # Use tqdm for progress bar over variables
     # Skip the regular processing loop if we already handled this file format specially
     if not skip_regular_processing:
@@ -383,8 +393,8 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
         else:
             if verbose:
                 print(f"    Created sorted coordinate arrays with {len(sorted_lats)} unique points")
-            print(f"    Coordinate processing: {time.time() - t_start:.2f} seconds")
-            print("    Creating data arrays by time period...")
+                print(f"    Coordinate processing: {time.time() - t_start:.2f} seconds")
+                print("    Creating data arrays by time period...")
             t_start = time.time()
         
         # Create a dictionary to store the variable data
@@ -898,6 +908,12 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     # - Yearly files: use July 1st
     total_points = len(sorted_lats)
     
+    # Record the end of coordinate processing time
+    coord_end_time = time.time()
+    coord_processing_time = coord_end_time - coord_start_time
+    if verbose:
+        print(f"Coordinate processing completed in {coord_processing_time:.2f} seconds")
+    
     if verbose:
         expansion_time = time.time() - t_expand
         print(f"    Grid expansion took {expansion_time:.2f} seconds")
@@ -1038,15 +1054,24 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
             print(f"Error writing NetCDF file: {e}")
             print("Continuing without writing file...")
     
-    # Return the dataset regardless
-    return ds
+    # Calculate total processing time
+    total_end_time = time.time()
+    total_time = total_end_time - total_start_time
     
+    # Print timing information even in non-verbose mode, but keep it concise
     if verbose:
-        end_time = time.time()
-        print(f"2D file processing completed in {end_time - start_time:.2f} seconds")
-        print(f"Output written to {output_path}")
+        print(f"Combined {len(combined_df)} data points from {len(file_paths)} files in {reading_time:.2f} seconds")
+        print(f"2D file processing completed in {total_time:.2f} seconds")
+    else:
+        # Simplified output for non-verbose mode
+        # Calculate variable processing time
+        var_processing_time = total_time - reading_time - coord_processing_time
+        print(f"  Done in {total_time:.2f}s ({len(combined_df)} points)")
+        if not is_dry_run:
+            print(f" Saved in → {os.path.basename(output_path)}")
     
-    return output_path
+    # Return the dataset
+    return ds if is_dry_run else output_path
 
 
 
@@ -1073,7 +1098,7 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False):
         print("3D file processing is temporarily disabled. 3D support will be added back soon.")
     return None
 
-def process_file(file_paths, output_path, grid_info=None, verbose=False):
+def process_file(file_paths, output_path, grid_info=None, verbose=False, current_pattern=None, total_patterns=None):
     """
     Process a file or group of files and convert to NetCDF.
     
@@ -1087,6 +1112,10 @@ def process_file(file_paths, output_path, grid_info=None, verbose=False):
         Grid information from grid_utils.read_grid_information.
     verbose : bool, optional
         Whether to print verbose output.
+    current_pattern : int, optional
+        Current pattern being processed (for progress reporting).
+    total_patterns : int, optional
+        Total number of patterns to process (for progress reporting).
         
     Returns
     -------
@@ -1096,12 +1125,23 @@ def process_file(file_paths, output_path, grid_info=None, verbose=False):
     # Get file structure from the first file
     from file_parser import detect_file_structure
     
+    process_start_time = time.time()
+    
+    if not verbose:
+        progress_info = ""
+        if current_pattern is not None and total_patterns is not None:
+            progress_info = f"[{current_pattern}/{total_patterns}] "
+        file_base = os.path.basename(file_paths[0])
+        print(f"{progress_info}Processing: {file_base}")
+    
     structure = detect_file_structure(file_paths[0])
     
     # For now, only handling 2D files
     if structure['is_3d']:
         if verbose:
             print("3D file processing is temporarily disabled. 3D support will be added back soon.")
+        else:
+            print("3D file processing is temporarily disabled.")
         return None
     else:
         return process_2d_file(file_paths, output_path, grid_info, verbose)

@@ -171,12 +171,17 @@ def main():
         processed_files = []
         # Show progress bar for processing multiple files
         file_items = list(out_files.items())
-        for file_name, file_paths in tqdm(file_items, desc="Processing file patterns", disable=not args.verbose):
+        total_patterns = len(file_items)
+        
+        for i, (file_name, file_paths) in enumerate(file_items):
+            current_pattern = i + 1
             if args.verbose:
                 print(f"Processing {len(file_paths)} files for pattern: {file_name}")
             
-            output_file = process_file(file_paths, args.output, grid_info, args.verbose)
-            processed_files.append(output_file)
+            output_file = process_file(file_paths, args.output, grid_info, args.verbose, 
+                                       current_pattern=current_pattern, total_patterns=total_patterns)
+            if output_file:  # Only add non-None results
+                processed_files.append(output_file)
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
