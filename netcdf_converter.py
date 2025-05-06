@@ -6,55 +6,73 @@ NetCDF conversion module for LPJ-GUESS to NetCDF.
 
 import os
 import time
-import numpy as np
+import datetime
 import pandas as pd
+import numpy as np
 import xarray as xr
-from tqdm import tqdm
-import multiprocessing
+import scipy.sparse as sp
 import psutil
-import math
+import multiprocessing
+from collections import defaultdict
+from tqdm import tqdm
 from joblib import Parallel, delayed
 from grid_utils import match_coordinates_to_grid
-import datetime
 
-def get_parallel_config(verbose=False):
+def get_parallel_config(verbose=False, requested_jobs=0, requested_chunk_size=0):
     """
     Determines optimal parallel processing configuration based on system resources.
     Uses joblib for more reliable parallelism in HPC environments.
+    
+    Parameters
+    ----------
+    verbose : bool, optional
+        Whether to print verbose output, by default False
+    requested_jobs : int, optional
+        User-requested number of jobs, by default 0 (auto-detect)
+    requested_chunk_size : int, optional
+        User-requested chunk size, by default 0 (auto-detect)
     
     Returns
     -------
     dict
         Dictionary containing optimal parallel configuration parameters
     """
-    # Default settings that work well in most environments
-    n_jobs = 8  # Default to 8 parallel jobs
-    chunk_size = 25000  # Medium sized chunks for processing
+    # Default settings based on performance testing
+    n_jobs = 16  # Default to 16 inner jobs for optimal performance
+    chunk_size = 50000  # Use larger chunks for better performance
     
-    # Detect available cores and adjust n_jobs
-    try:
-        total_cores = multiprocessing.cpu_count()
-        # Use at most 75% of available cores to avoid overloading the system
-        n_jobs = max(2, min(64, int(total_cores * 0.75)))
-        
-        # Get available memory in GB
-        mem = psutil.virtual_memory()
-        available_memory = mem.available / (1024**3)  # Convert to GB
-        
-        # Adjust chunk size based on available memory
-        if available_memory < 8:  # Less than 8GB available
-            chunk_size = 10000
-        elif available_memory > 32:  # More than 32GB available
-            chunk_size = 50000
+    # Use user-specified chunk size if provided
+    if requested_chunk_size > 0:
+        chunk_size = requested_chunk_size
+    
+    # If user requested specific number of jobs, use that
+    if requested_jobs > 0:
+        n_jobs = requested_jobs
+    else:
+        # Detect available cores and adjust n_jobs
+        try:
+            total_cores = multiprocessing.cpu_count()
+            # Use at most 75% of available cores to avoid overloading the system
+            n_jobs = max(2, min(64, int(total_cores * 0.75)))
             
-        if verbose:
-            print(f"    System resources detected: {total_cores} cores, {available_memory:.1f}GB available memory")
-    except Exception as e:
-        if verbose:
-            print(f"    Error detecting system resources: {e}, using default settings")
+            # Get available memory in GB
+            mem = psutil.virtual_memory()
+            available_memory = mem.available / (1024**3)  # Convert to GB
+            
+            # Adjust chunk size based on available memory
+            if available_memory < 8:  # Less than 8GB available
+                chunk_size = 10000
+            elif available_memory > 32:  # More than 32GB available
+                chunk_size = 50000
+                
+            if verbose:
+                print(f"    System resources detected: {total_cores} cores, {available_memory:.1f}GB available memory")
+        except Exception as e:
+            if verbose:
+                print(f"    Error detecting system resources: {e}, using default settings")
     
     if verbose:
-        print(f"    Parallel configuration: {n_jobs} parallel jobs")
+        print(f"    Inner parallel configuration: {n_jobs} parallel jobs")
         print(f"    Chunk size: {chunk_size} data points")
     
     return {
@@ -109,7 +127,7 @@ def process_lat_chunk(chunk_lats, grid_lats, start_idx):
         indices[i] = np.abs(grid_lats - lat).argmin()
     return start_idx, indices
 
-def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
+def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inner_jobs=0, chunk_size=0, pattern_filter=None):
     """
     Process a 2D .out file and convert it to NetCDF.
     
@@ -216,6 +234,13 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     # IMPORTANT: This dictionary must persist through all variable processing iterations
     all_data_vars = {}
     
+    # Calculate the start index for variable columns
+    # This is 3 if there's no Day column, 4 if there is
+    start_idx = 3 if 'Day' not in columns else 4
+    
+    # Track the number of variables in the input file to ensure they're all included
+    n_variables = len(columns) - start_idx
+    
     # Check if this is a monthly file by looking for month names in columns
     month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     month_columns = [col for col in columns if col in month_names]
@@ -224,8 +249,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     if is_monthly_file and verbose:
         print(f"Detected monthly file format with {len(month_columns)} month columns")
     
-    # Process each variable column (everything after Lon, Lat, Year, [Day])
-    start_idx = 3 if not has_day else 4
+    # Already calculated the start index for variable columns above
+    
+    # Process all files with a consistent approach that preserves all variables
     
     if is_monthly_file:
         # For monthly files, the variable name is in the base filename
@@ -236,6 +262,12 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     else:
         # Standard format - each column after coordinates is a separate variable
         var_columns = columns[start_idx:]
+        
+    # Apply pattern filter if specified (for ifs_input.out files mostly)
+    if pattern_filter and pattern_filter in var_columns:
+        if verbose:
+            print(f"Filtering for variable: {pattern_filter}")
+        var_columns = [pattern_filter]
     
     if verbose:
         print(f"Processing {len(var_columns)} variables across {len(combined_df)} data points...")
@@ -344,6 +376,106 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
     
     # Use tqdm for progress bar over variables
     # Skip the regular processing loop if we already handled this file format specially
+    # Process each variable column (everything after Lon, Lat, Year, [Day])
+    # For existing files, just iterate through each variable column
+    if not skip_regular_processing:
+        # Create a special case for ifs_input-like files which have multiple variable columns
+        is_multi_var_column_file = len(var_columns) > 1 and all(v in combined_df.columns for v in var_columns)
+        
+        if is_multi_var_column_file and verbose:
+            print(f"Processing file with {len(var_columns)} variable columns")
+            
+        # Create sorted coordinate arrays before processing variables
+        t_start = time.time()
+        if verbose:
+            print("    Creating 1D sorted coordinates (N->S, E->W)...")
+        
+        # Create a DataFrame to help with sorting and indexing
+        coord_df = pd.DataFrame({
+            'lat': combined_df['Lat'].values,
+            'lon': combined_df['Lon'].values
+        })
+        
+        # Add day column if present in the input data
+        if has_day:
+            coord_df['day'] = combined_df['Day'].values
+        
+        # Always use just the coordinates found in the data files for processing
+        # (we'll expand to the full grid later when creating the final dataset)
+        if verbose:
+            print("    Sorting coordinates by latitude (N->S) and longitude (W->E)...")
+        
+        # Sort by latitude (descending, N->S) and longitude (ascending, W->E)
+        coord_df = coord_df.sort_values(by=['lat', 'lon'], ascending=[False, True])
+        
+        # Get the unique coordinates (now sorted)
+        unique_coords = coord_df.drop_duplicates(subset=['lat', 'lon'])
+        sorted_lats = unique_coords['lat'].values
+        sorted_lons = unique_coords['lon'].values
+        
+        # Save grid info for later expansion
+        have_full_grid = grid_info is not None and 'full_lat' in grid_info and 'full_lon' in grid_info
+        if have_full_grid and verbose:
+            num_land_points = len(grid_info['full_lat'])
+            print(f"    Processing with {len(sorted_lats)} data points (will expand to {num_land_points} grid points later)")
+        
+        # Create the latitude index for fast lookups
+        lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
+            
+        # Now process each variable column and add to the all_data_vars dictionary
+        for var_col in tqdm(var_columns, desc="Processing variables", disable=not verbose):
+            if verbose:
+                print(f"  > Processing dataset for {var_col} using 1D coordinate representation")
+            
+            # Create a data array for this variable
+            var_data = np.full((len(times), len(sorted_lats)), np.nan)
+            
+            # Get arrays for this variable
+            lats = combined_df['Lat'].values
+            lons = combined_df['Lon'].values
+            values = combined_df[var_col].values
+            
+            # Build time index mapping
+            time_map = {}
+            for i, t in enumerate(times):
+                year = t.year
+                if has_day:
+                    day = t.dayofyear
+                    time_map[(year, day)] = i
+                else:
+                    time_map[year] = i
+            
+            # Fill the data array
+            for i in range(len(lats)):
+                lat = lats[i]
+                if lat in lat_to_idx:
+                    point_idx = lat_to_idx[lat]
+                    
+                    # Get time index
+                    year = int(combined_df['Year'].iloc[i])
+                    if has_day:
+                        day = int(combined_df['Day'].iloc[i])
+                        time_key = (year, day)
+                    else:
+                        time_key = year
+                        
+                    if time_key in time_map:
+                        time_idx = time_map[time_key]
+                        var_data[time_idx, point_idx] = values[i]
+            
+            # Store this variable in all_data_vars
+            all_data_vars[var_col] = ((time_dim, 'points'), var_data.copy())
+            
+            if verbose:
+                print(f"    Added variable {var_col} to dataset (now have {len(all_data_vars)} variables)")
+        
+        if verbose:
+            print(f"Processed all {len(var_columns)} variables, stored in dataset: {list(all_data_vars.keys())}")
+            
+        # Skip the traditional slow processing loop since we've handled everything
+        skip_regular_processing = True
+    
+    # Original processing path for other file types
     if not skip_regular_processing:
         for var_col in tqdm(var_columns, desc="Processing variables", disable=not verbose):
             # Skip creating a full grid with NaNs and instead create a 1D representation
@@ -355,6 +487,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
             lats_array = combined_df['Lat'].values
             years_array = combined_df['Year'].values
             values_array = combined_df[var_col].values
+            
+            # Store the variable name
+            current_var_name = var_col
         
         t_start = time.time()
         if verbose:
@@ -480,7 +615,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
                 print("    Getting optimal parallel configuration...")
                 
             # Get optimal system resource configuration
-            parallel_config = get_parallel_config(verbose=verbose)
+            parallel_config = get_parallel_config(verbose=verbose, requested_jobs=inner_jobs)
             n_workers = parallel_config['n_jobs']
             
             if verbose:
@@ -530,7 +665,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
                 start, end = chunks[chunk_idx]
                 # Create a local copy of the structure to store results
                 # This avoids multiprocessing shared memory issues
-                results_dict = {}
+                results_list = []
                 points_processed = 0
                 
                 # Process this chunk
@@ -544,48 +679,75 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
                     # This was the key optimization that previously gave us 10+ million points/sec
                     if lat in lat_to_idx:
                         point_idx = lat_to_idx[lat]
-                        # Store in a dictionary keyed by (time_idx, point_idx) instead of modifying shared memory
-                        results_dict[(time_idx, point_idx)] = value
+                        # Store in a list of tuples (time_idx, point_idx, value) instead of modifying shared memory
+                        results_list.append((time_idx, point_idx, value))
                         points_processed += 1
                         
-                return chunk_idx, results_dict, points_processed
+                return chunk_idx, results_list, points_processed
             
             # Process chunks in parallel
             t_process_start = time.time()
-            results = Parallel(n_jobs=n_workers, backend=parallel_config['backend'])(
-                delayed(process_chunk)(i) for i in range(len(chunks))
-            )
+            results = []
             
-            # Merge results from all chunks into the output array
-            if verbose:
-                print("    Merging results from parallel chunks...")
-                
-            t_merge_start = time.time()
-            total_points = 0
-            
-            # Collect results from all chunks
-            for _, chunk_results, points in results:
-                total_points += points
-                # Apply each value from the chunk results to the output array
-                for (time_idx, point_idx), value in chunk_results.items():
-                    var_data[time_idx, point_idx] = value
+            if n_workers > 1 and len(chunks) > 1:
+                # Parallel processing with joblib
+                with Parallel(n_jobs=n_workers, backend=parallel_config['backend']) as parallel:
+                    results = parallel(delayed(process_chunk)(chunk_idx) 
+                                        for chunk_idx in tqdm(range(len(chunks)), desc=f"Processing data in {len(chunks)} chunks using {n_workers} workers", disable=not verbose))
+            else:
+                # Sequential processing for small datasets or when parallel processing is disabled
+                for chunk_idx in tqdm(range(len(chunks)), desc="Processing data chunks", disable=not verbose):
+                    results.append(process_chunk(chunk_idx))
                     
-            merge_time = time.time() - t_merge_start
-            processing_time = time.time() - t_process_start
+            # Merge results
+            # Each result is a sparse tensor with (time_idx, point_idx, value) entries
+            if verbose:
+                print("    Creating high-performance latitude index...")
+                print("    Merging results from parallel chunks...")
+            merge_start = time.time()
+            
+            # Use sparse matrix to efficiently combine results
+            sparse_values = defaultdict(list)
+            sparse_rows = defaultdict(list)
+            sparse_cols = defaultdict(list)
+            
+            # Collect all sparse entries
+            for chunk_result in results:
+                for time_idx, point_idx, value in chunk_result[1]:
+                    sparse_values[time_idx].append(value)
+                    sparse_rows[time_idx].append(0)  # Only one row per time - simpler to construct
+                    sparse_cols[time_idx].append(point_idx)
+            
+            # Create the var_data array
+            for time_idx in range(len(times)):
+                if time_idx in sparse_values and len(sparse_values[time_idx]) > 0:
+                    # Create a sparse matrix for this time point
+                    sparse_mat = sp.csr_matrix(
+                        (sparse_values[time_idx], 
+                         (sparse_rows[time_idx], sparse_cols[time_idx])),
+                        shape=(1, len(sorted_lats))
+                    )
+                    # Convert to dense and update the var_data array
+                    var_data[time_idx] = sparse_mat.toarray()[0]
+            
+            # Store this variable in all_data_vars with a deep copy to ensure it's not overwritten
+            # This is critical to preserve all variables across iterations
+            all_data_vars[current_var_name] = ((time_dim, 'points'), var_data.copy())
             
             if verbose:
-                print(f"    Merging results took {merge_time:.2f} seconds")
+                print(f"    Added variable {current_var_name} to dataset (now have {len(all_data_vars)} variables)")
             
             if verbose:
-                print(f"    Processed {total_points} points in {processing_time:.2f} seconds")
-                if processing_time > 0:
-                    print(f"    Processing speed: {total_points / processing_time:.0f} points/sec")
+                print(f"    Merging results took {time.time() - merge_start:.2f} seconds")
+            
+            if verbose:
+                print(f"    Processed {sum([r[2] for r in results])} points in {time.time() - t_process_start:.2f} seconds")
+                if time.time() - t_process_start > 0:
+                    print(f"    Processing speed: {sum([r[2] for r in results]) / (time.time() - t_process_start):.0f} points/sec")
                 print(f"    Final data array shape: {var_data.shape}")
                 print(f"    Total non-NaN values: {np.count_nonzero(~np.isnan(var_data))}")
                 print(f"    Memory usage: {var_data.nbytes / (1024 * 1024):.1f} MB")
             
-            # Add to all_data_vars - this stores ALL variables across all iterations
-            all_data_vars[var_col] = (('time', 'points'), var_data)
         else:
             # Use year directly
             t1 = time.time()
@@ -625,7 +787,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
                 print("    Getting optimal parallel configuration...")
                 
             # Get optimal system resource configuration
-            parallel_config = get_parallel_config(verbose=verbose)
+            parallel_config = get_parallel_config(verbose=verbose, requested_jobs=inner_jobs)
             n_workers = parallel_config['n_jobs']
             
             if verbose:
@@ -891,12 +1053,27 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
             expanded_data_vars[var_name] = ((dims[0], 'points'), expanded_var)
         
         # Use the expanded data and full coordinates
-    # CRITICAL FIX: Store ALL expanded variables in all_data_vars
-    # This ensures all variables from all iterations are included in the final NetCDF file
-    all_data_vars = expanded_data_vars
+    # Expand all variables to the full grid without losing any
+    # Note: We must create a NEW dictionary to avoid modifying the dict during iteration
+    old_data_vars = all_data_vars.copy()
+    all_data_vars = {}
+    
+    # Process all variables for expansion
+    for var_name, (dims, var_data) in old_data_vars.items():
+        # If this variable was already expanded, use the expanded version
+        if var_name in expanded_data_vars:
+            all_data_vars[var_name] = expanded_data_vars[var_name]
+        else:
+            # Otherwise keep the original version
+            all_data_vars[var_name] = (dims, var_data)
+            
+    # Now use the common expanded grid coordinates for all variables
     sorted_lats = full_sorted_lats
     sorted_lons = full_sorted_lons
     grid_name = "TL255-land"
+    
+    if verbose:
+        print(f"Preserved all variables in dataset: {list(all_data_vars.keys())}")
     
     # Process time information for NetCDF
     # For daily files with timestamps, preserve the exact times
@@ -936,10 +1113,6 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
         coords['time'] = ('time', times)
     else:
         coords['year'] = ('year', years)
-
-    # DEBUG - Print variable names before dataset creation
-    if verbose:
-        print(f"Variables being added to dataset: {list(all_data_vars.keys())}")
 
     # Create the dataset with full grid information - CORRECT FORMAT
     # xarray expects data_vars in this format: {'var_name': (dims, data)}    
@@ -1075,7 +1248,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False):
 
 
 
-def process_3d_file(file_paths, output_path, grid_info=None, verbose=False):
+def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inner_jobs=0, chunk_size=0):
     """Placeholder for 3D file processing that will be reimplemented in the future.
     
     Parameters
@@ -1098,7 +1271,7 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False):
         print("3D file processing is temporarily disabled. 3D support will be added back soon.")
     return None
 
-def process_file(file_paths, output_path, grid_info=None, verbose=False, current_pattern=None, total_patterns=None):
+def process_file(file_paths, output_path, grid_info=None, verbose=False, current_pattern=None, total_patterns=None, inner_jobs=0, chunk_size=0, pattern_filter=None):
     """
     Process a file or group of files and convert to NetCDF.
     
@@ -1144,4 +1317,4 @@ def process_file(file_paths, output_path, grid_info=None, verbose=False, current
             print("3D file processing is temporarily disabled.")
         return None
     else:
-        return process_2d_file(file_paths, output_path, grid_info, verbose)
+        return process_2d_file(file_paths, output_path, grid_info, verbose, inner_jobs=inner_jobs, chunk_size=chunk_size, pattern_filter=pattern_filter)

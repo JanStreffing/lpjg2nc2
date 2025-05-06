@@ -54,8 +54,16 @@ def parse_args():
         help='Test with specific file pattern (e.g., ifs_input.out)'
     )
     parser.add_argument(
-        '-j', '--jobs', type=int, default=0,
-        help='Number of parallel jobs. Default (0) auto-detects based on CPU cores.'
+        '-j', '--jobs', type=int, default=8,
+        help='Number of parallel jobs for outer parallelization (patterns). Default (8) based on performance testing.'
+    )
+    parser.add_argument(
+        '--inner-jobs', type=int, default=16,
+        help='Number of parallel jobs for inner parallelization (within patterns). Default (16) based on performance testing.'
+    )
+    parser.add_argument(
+        '--chunk-size', type=int, default=50000,
+        help='Chunk size for processing data arrays. Larger values use more memory but may be faster. Default (50000) based on performance testing.'
     )
     parser.add_argument(
         '--pattern', type=str, default=None,
@@ -206,7 +214,8 @@ def main():
             if pattern_name in out_files:
                 file_paths = out_files[pattern_name]
                 # Process just this pattern
-                output_file = process_file(file_paths, args.output, grid_info, args.verbose)
+                output_file = process_file(file_paths, args.output, grid_info, args.verbose, 
+                                          inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     print(f"Successfully processed: {pattern_name} -> {os.path.basename(output_file)}")
                     return 0
@@ -236,6 +245,10 @@ def main():
             base_cmd = f"{sys.executable} {script_path} -p {args.path} -o {args.output}"
             if args.verbose:
                 base_cmd += " -v"
+            if args.inner_jobs > 0:
+                base_cmd += f" --inner-jobs {args.inner_jobs}"
+            if args.chunk_size > 0:
+                base_cmd += f" --chunk-size {args.chunk_size}"
                 
             # Start processing patterns in parallel
             print(f"Starting parallel processing with {n_jobs} workers")
@@ -304,7 +317,8 @@ def main():
             for i, (file_name, file_paths) in enumerate(file_items):
                 current_pattern = i + 1
                 output_file = process_file(file_paths, args.output, grid_info, args.verbose,
-                                          current_pattern=current_pattern, total_patterns=total_patterns)
+                                          current_pattern=current_pattern, total_patterns=total_patterns,
+                                          inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     processed_files.append(output_file)
         
@@ -315,10 +329,5 @@ def main():
         print(f"📁 NetCDF files saved to: {args.output}")
         print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
         
-        # Calculate speedup if multiple jobs were used
-        if n_jobs > 1:
-            print(f"🚀 Estimated speedup factor with parallelization: ~{n_jobs}x faster than sequential processing")
-
-
 if __name__ == "__main__":
     main()
