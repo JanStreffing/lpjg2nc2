@@ -3,23 +3,69 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# C extensions
+*.so
+
 # Distribution / packaging
 dist/
 build/
 *.egg-info/
+.eggs/
+eggs/
+develop-eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg
 
 # Virtual environments
 venv/
 env/
 .env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+pyvenv.cfg
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Output directories
+# pytest / coverage reports
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Sphinx documentation
+docs/_build/
+
+# IDE configs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Output directories and files
 out/
 netcdf_output/
+
+# CDO grid files
+grid_*_global.txt
+# Specifically catch grid dimension patterns like 360x180
+grid_*x*_global.txt
 
 # OS specific files
 .DS_Store
 Thumbs.db
+.directory
+.Spotlight-V100
+.Trashes
