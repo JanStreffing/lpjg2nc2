@@ -139,31 +139,9 @@ htmlhelp_basename = 'lpjg2nc2doc'
 
 # -- Options for LaTeX output ------------------------------------------------
 
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    'papersize': 'a4paper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    'pointsize': '11pt',
-
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'lpjg2nc2.tex', 'lpjg2nc2 Documentation',
-     'Jan Streffing', 'manual'),
-]
+# Disable all LaTeX output to avoid file descriptor errors
+latex_elements = None
+latex_documents = None
 
 
 # -- Options for manual page output ------------------------------------------
@@ -190,20 +168,9 @@ texinfo_documents = [
 
 # -- Options for Epub output -------------------------------------------------
 
-# Bibliographic Dublin Core info.
-epub_title = project
-
-# The unique identifier of the text. This can be a ISBN number
-# or the project homepage.
-#
-# epub_identifier = ''
-
-# A unique identification for the text.
-#
-# epub_uid = ''
-
-# A list of files that should not be packed into the epub file.
-epub_exclude_files = ['search.html']
+# Disable all ePub output to avoid related issues
+epub_title = None
+epub_exclude_files = None
 
 
 # -- Extension configuration -------------------------------------------------
