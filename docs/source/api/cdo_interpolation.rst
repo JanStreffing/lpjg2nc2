@@ -1,37 +1,21 @@
 .. _api_cdo_interpolation:
 
 CDO Interpolation Module
-======================
+========================
 
 The CDO interpolation module provides utilities for remapping LPJ-GUESS output to regular global grids using Climate Data Operators (CDO).
 
-.. automodule:: lpjg2nc.cdo_interpolation
-   :members:
-   :undoc-members:
-   :show-inheritance:
+Key Functions
+-------------
 
-Grid Remapping Functions
-----------------------
+* ``remap_to_regular_grid(input_file, grid_param, output_file=None, verbose=False)``
 
-.. autofunction:: remap_to_regular_grid
-   :noindex:
+  Remap an unstructured-grid NetCDF file to a regular latitude–longitude grid. Supports both resolution-based and grid-dimension specifications.
 
-The main function for remapping irregular grid data to a regular latitude-longitude grid. Supports both:
-- Resolution-based specification (e.g., 1 degree)
-- Grid dimension specification (e.g., 360x180 points)
+* ``create_grid_file(resolution, xsize=None, ysize=None, output_path=None)``
 
-Grid File Creation
-----------------
+  Create a grid description text file that CDO uses during remapping operations.
 
-.. autofunction:: create_grid_file
-   :noindex:
+* ``is_cdo_available()``
 
-Creates grid description files required by CDO for remapping operations.
-
-Utility Functions
----------------
-
-.. autofunction:: is_cdo_available
-   :noindex:
-
-Checks whether the CDO command-line tools are available in the current environment.
+  Check whether the CDO command-line tool is available in the current environment.
