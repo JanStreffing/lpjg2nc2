@@ -419,8 +419,10 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             num_land_points = len(grid_info['full_lat'])
             print(f"    Processing with {len(sorted_lats)} data points (will expand to {num_land_points} grid points later)")
         
-        # Create the latitude index for fast lookups
-        lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
+        # Create a mapping from full coordinate pairs (lat, lon) to a unique point index
+        # This ensures that every distinct spatial location is treated independently,
+        # even when multiple longitudes share the same latitude.
+        coord_to_idx = {(lat, lon): i for i, (lat, lon) in enumerate(zip(sorted_lats, sorted_lons))}
             
         # Now process each variable column and add to the all_data_vars dictionary
         for var_col in tqdm(var_columns, desc="Processing variables", disable=not verbose):
@@ -449,9 +451,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             # Create arrays for faster operations
             years_array = combined_df['Year'].values.astype(np.int32)
             
-            # Create mapping arrays
-            lat_indices = np.array([lat_to_idx.get(lat, -1) for lat in lats])
-            valid_lat_mask = lat_indices >= 0
+            # Create mapping arrays using full coordinate pairs
+            point_indices = np.array([coord_to_idx.get((lat, lon), -1) for lat, lon in zip(lats, lons)])
+            valid_point_mask = point_indices >= 0
             
             # Process time indices
             if has_day:
@@ -494,16 +496,16 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             valid_time_mask = time_indices >= 0
             
             # Combined mask for valid points
-            valid_mask = valid_lat_mask & valid_time_mask
+            valid_mask = valid_point_mask & valid_time_mask
             
             # Use the mask to fill the data array
             if np.any(valid_mask):
-                lat_idx_valid = lat_indices[valid_mask]
+                point_idx_valid = point_indices[valid_mask]
                 time_idx_valid = time_indices[valid_mask]
                 values_valid = values[valid_mask]
                 
                 # Use numpy's advanced indexing to fill the data array
-                var_data[time_idx_valid, lat_idx_valid] = values_valid
+                var_data[time_idx_valid, point_idx_valid] = values_valid
             
             # Store this variable in all_data_vars
             all_data_vars[var_col] = ((time_dim, 'points'), var_data.copy())
@@ -625,8 +627,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                 print("    Building fast coordinate index lookup tables...")
                 
             # Create lookup dictionaries for faster coordinate mapping
-            lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
-            lon_to_idx = {lon: i for i, lon in enumerate(sorted_lons)}
+            coord_to_idx = {(lat, lon): i for i, (lat, lon) in enumerate(zip(sorted_lats, sorted_lons))}
             
             t2 = time.time()
             if verbose:
@@ -696,10 +697,10 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             if verbose:
                 print(f"    Processing data in {len(chunks)} chunks using {n_workers} workers")
             
-            # Create simple latitude index dictionary for much faster lookups
+            # Create simple coordinate index dictionary for much faster lookups
             if verbose:
-                print("    Creating high-performance latitude index...")
-            lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
+                print("    Creating high-performance coordinate index mapping...")
+            coord_to_idx = grid_point_to_idx  # Alias for clarity
                 
             # Define a parallel processing function that works directly with arrays
             # We'll process each chunk independently and return the results to avoid shared memory issues
@@ -717,11 +718,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                     time_idx = time_idx_array[i]
                     value = value_array[i]
                     
-                    # Use direct latitude lookup which is MUCH faster than coordinate pair lookup
-                    # This was the key optimization that previously gave us 10+ million points/sec
-                    if lat in lat_to_idx:
-                        point_idx = lat_to_idx[lat]
-                        # Store in a list of tuples (time_idx, point_idx, value) instead of modifying shared memory
+                    # Look up the full coordinate pair
+                    point_idx = coord_to_idx.get((lat, lon))
+                    if point_idx is not None:
                         results_list.append((time_idx, point_idx, value))
                         points_processed += 1
                         
@@ -744,7 +743,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             # Merge results
             # Each result is a sparse tensor with (time_idx, point_idx, value) entries
             if verbose:
-                print("    Creating high-performance latitude index...")
+                print("    Creating high-performance coordinate index mapping...")
                 print("    Merging results from parallel chunks...")
             merge_start = time.time()
             
@@ -800,8 +799,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                 print("    Building fast coordinate index lookup tables...")
                 
             # Create lookup dictionaries for faster coordinate mapping
-            lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
-            lon_to_idx = {lon: i for i, lon in enumerate(sorted_lons)}
+            coord_to_idx = {(lat, lon): i for i, (lat, lon) in enumerate(zip(sorted_lats, sorted_lons))}
             
             t2 = time.time()
             if verbose:
@@ -868,10 +866,10 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             if verbose:
                 print(f"    Processing data in {len(chunks)} chunks using {n_workers} workers")
             
-            # Create simple latitude index dictionary for much faster lookups
+            # Create simple coordinate index dictionary for much faster lookups
             if verbose:
-                print("    Creating high-performance latitude index...")
-            lat_to_idx = {lat: i for i, lat in enumerate(sorted_lats)}
+                print("    Creating high-performance coordinate index mapping...")
+            coord_to_idx = grid_point_to_idx  # Alias for clarity
             
             # Define a parallel processing function that works directly with arrays
             # We'll process each chunk independently and return the results to avoid shared memory issues
@@ -889,11 +887,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                     year_idx = year_idx_array[i]
                     value = value_array[i]
                     
-                    # Use direct latitude lookup which is MUCH faster than coordinate pair lookup
-                    # This was the key optimization that previously gave us 10+ million points/sec
-                    if lat in lat_to_idx:
-                        point_idx = lat_to_idx[lat]
-                        # Store in a dictionary keyed by (year_idx, point_idx) instead of modifying shared memory
+                    # Look up the full coordinate pair
+                    point_idx = coord_to_idx.get((lat, lon))
+                    if point_idx is not None:
                         results_dict[(year_idx, point_idx)] = value
                         points_processed += 1
                         
