@@ -65,13 +65,8 @@ release = '1.0.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
 ]
 
 # Using the Mock class above instead of autodoc_mock_imports for better control
