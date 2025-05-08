@@ -50,6 +50,11 @@ extensions = [
     'sphinx.ext.napoleon',
 ]
 
+# Mock imports for ReadTheDocs - prevents import errors during documentation building
+autodoc_mock_imports = ['numpy', 'pandas', 'xarray', 'netCDF4', 'tqdm', 
+                        'scipy', 'joblib', 'psutil', 'matplotlib', 're',
+                        'multiprocessing', 'subprocess', 'shutil', 'datetime']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
