@@ -21,13 +21,14 @@ from tqdm import tqdm
 import multiprocessing
 import subprocess
 import json
+import shutil
 
 # Import from our modules
-from grid_utils import read_grid_information
-from file_parser import find_out_files, detect_file_structure
-from netcdf_converter import process_file
-from count_nans import analyze_netcdf, print_short_summary
-import shutil
+from lpjg2nc.grid_utils import read_grid_information
+from lpjg2nc.file_parser import find_out_files, detect_file_structure
+from lpjg2nc.netcdf_converter import process_file
+from lpjg2nc.count_nans import analyze_netcdf, print_short_summary
+from lpjg2nc.cdo_interpolation import remap_to_regular_grid
 
 
 def parse_args():
@@ -53,7 +54,7 @@ def parse_args():
     )
     parser.add_argument(
         '--remap', type=str, metavar='RES',
-        help='Remap output to a regular global grid using CDO. Specify resolution in degrees (e.g., 0.5, 1, 2)'
+        help='Remap output to a regular global grid using CDO. Specify either resolution in degrees (e.g., 0.5, 1, 2) or grid dimensions as XxY (e.g., 360x180 for 1° grid)'
     )
     parser.add_argument(
         '--test', type=str, choices=['ifs_input'],
@@ -76,24 +77,6 @@ def parse_args():
         help='Specific pattern to process (used internally for parallelization)'
     )
     return parser.parse_args()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=None):
@@ -149,130 +132,23 @@ def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=Non
     
     # Remap to regular grid if requested
     if remap and output_file:
-        try:
-            resolution = float(remap)
-            if resolution <= 0:
-                print(f"⚠️ Invalid resolution: {remap}. Must be a positive number.")
+        # Handle either resolution in degrees or grid dimensions format
+        remapped_file = remap_to_regular_grid(output_file, remap, verbose=verbose)
+        if remapped_file:
+            # Format the grid description based on the remap parameter format
+            if 'x' in str(remap).lower():
+                print(f"📊 Created {remap} grid file: {remapped_file}")
             else:
-                remapped_file = remap_to_regular_grid(output_file, resolution, verbose=verbose)
-                if remapped_file:
+                try:
+                    resolution = float(remap)
                     print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
-        except ValueError:
-            print(f"⚠️ Invalid resolution: {args.remap}. Must be a number.")
+                except ValueError:
+                    print(f"📊 Created remapped grid file: {remapped_file}")
     
     print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
     
     return output_file
 
-
-def is_cdo_available():
-    """Check if CDO command-line tool is available."""
-    try:
-        result = subprocess.run(['cdo', '--version'], 
-                              stdout=subprocess.PIPE, 
-                              stderr=subprocess.PIPE, 
-                              universal_newlines=True)
-        return result.returncode == 0
-    except FileNotFoundError:
-        return False
-
-
-def create_grid_file(resolution, output_path=None):
-    """Create a grid description file for the specified resolution.
-    
-    Parameters
-    ----------
-    resolution : float
-        Grid resolution in degrees
-    output_path : str, optional
-        Path to save the grid file. If None, creates in script directory.
-        
-    Returns
-    -------
-    str
-        Path to the created grid file
-    """
-    # Create default output filename if not specified
-    if output_path is None:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        output_path = os.path.join(script_dir, f"grid_{resolution}deg_global.txt")
-    
-    # Calculate grid parameters
-    xsize = int(360 / resolution)
-    ysize = int(180 / resolution)
-    xinc = resolution
-    yinc = resolution
-    xfirst = -180 + (resolution / 2)
-    yfirst = -90 + (resolution / 2)
-    
-    # Create grid file
-    with open(output_path, 'w') as f:
-        f.write("gridtype = lonlat\n")
-        f.write(f"xsize    = {xsize}\n")
-        f.write(f"ysize    = {ysize}\n")
-        f.write(f"xfirst   = {xfirst}\n")
-        f.write(f"xinc     = {xinc}\n")
-        f.write(f"yfirst   = {yfirst}\n")
-        f.write(f"yinc     = {yinc}\n")
-    
-    return output_path
-
-
-def remap_to_regular_grid(input_file, resolution, output_file=None, verbose=False):
-    """Remap a NetCDF file to a regular global grid using CDO.
-    
-    Parameters
-    ----------
-    input_file : str
-        Path to input NetCDF file
-    resolution : float
-        Grid resolution in degrees
-    output_file : str, optional
-        Path to output remapped file. If None, will append '_<resolution>deg.nc' to input filename
-    verbose : bool, optional
-        Whether to print verbose output
-    
-    Returns
-    -------
-    str or None
-        Path to remapped file if successful, None otherwise
-    """
-    if not is_cdo_available():
-        print("Error: CDO not available. Cannot perform remapping.")
-        return None
-    
-    # Create default output filename if not specified
-    if output_file is None:
-        base, ext = os.path.splitext(input_file)
-        output_file = f"{base}_{resolution}deg{ext}"
-    
-    # Create grid file
-    grid_file = create_grid_file(resolution)
-    
-    # Run CDO to remap
-    cmd = f"cdo remapnn,{grid_file} {input_file} {output_file}"
-    if verbose:
-        print(f"Remapping with CDO: {cmd}")
-    
-    try:
-        result = subprocess.run(cmd, 
-                              stdout=subprocess.PIPE if not verbose else None,
-                              stderr=subprocess.PIPE if not verbose else None,
-                              shell=True,
-                              universal_newlines=True)
-        
-        if result.returncode == 0:
-            if verbose:
-                print(f"Successfully remapped to {resolution}° grid: {output_file}")
-            return output_file
-        else:
-            print("Error during CDO remapping")
-            if verbose and result.stderr:
-                print(result.stderr)
-            return None
-    except Exception as e:
-        print(f"Error running CDO: {e}")
-        return None
 
 
 def run_subprocess(cmd):
@@ -481,10 +357,6 @@ def main():
             print(f"📁 NetCDF files saved to: {args.output}")
             print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
             
-            # Calculate speedup
-            if n_jobs > 1:
-                print(f"🚀 Estimated speedup with parallelization: ~{n_jobs}x faster than sequential processing")
-                
             return 0
         
         # Sequential processing as fallback or if n_jobs=1

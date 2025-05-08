@@ -16,7 +16,7 @@ import multiprocessing
 from collections import defaultdict
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from grid_utils import match_coordinates_to_grid
+from lpjg2nc.grid_utils import match_coordinates_to_grid
 
 def get_parallel_config(verbose=False, requested_jobs=0, requested_chunk_size=0):
     """
@@ -155,7 +155,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         print(f"Processing 2D file: {os.path.basename(file_paths[0])}")
     
     # Get the file structure from the first file
-    from file_parser import detect_file_structure, read_and_combine_files
+    from lpjg2nc.file_parser import detect_file_structure, read_and_combine_files
     
     structure = detect_file_structure(file_paths[0])
     columns = structure['columns']
@@ -1334,7 +1334,7 @@ def process_file(file_paths, output_path, grid_info=None, verbose=False, current
         Path to the created NetCDF file.
     """
     # Get file structure from the first file
-    from file_parser import detect_file_structure
+    from lpjg2nc.file_parser import detect_file_structure
     
     process_start_time = time.time()
     
