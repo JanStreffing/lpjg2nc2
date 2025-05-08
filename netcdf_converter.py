@@ -445,23 +445,65 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                 else:
                     time_map[year] = i
             
-            # Fill the data array
-            for i in range(len(lats)):
-                lat = lats[i]
-                if lat in lat_to_idx:
-                    point_idx = lat_to_idx[lat]
-                    
-                    # Get time index
-                    year = int(combined_df['Year'].iloc[i])
-                    if has_day:
-                        day = int(combined_df['Day'].iloc[i])
-                        time_key = (year, day)
-                    else:
-                        time_key = year
-                        
+            # Vectorized approach for filling the data array
+            # Create arrays for faster operations
+            years_array = combined_df['Year'].values.astype(np.int32)
+            
+            # Create mapping arrays
+            lat_indices = np.array([lat_to_idx.get(lat, -1) for lat in lats])
+            valid_lat_mask = lat_indices >= 0
+            
+            # Process time indices
+            if has_day:
+                days_array = combined_df['Day'].values.astype(np.int32)
+                # Create time keys as a structured array for faster lookup
+                time_keys = np.zeros(len(years_array), dtype=[('year', np.int32), ('day', np.int32)])
+                time_keys['year'] = years_array
+                time_keys['day'] = days_array
+                
+                # Create a mapping from time keys to indices - more efficient approach
+                time_indices = np.full(len(years_array), -1, dtype=np.int32)
+                
+                # Create a dictionary for faster lookups
+                unique_time_pairs = set(zip(years_array, days_array))
+                lookup_dict = {}
+                for year, day in unique_time_pairs:
+                    time_key = (year, day)
                     if time_key in time_map:
-                        time_idx = time_map[time_key]
-                        var_data[time_idx, point_idx] = values[i]
+                        lookup_dict[(year, day)] = time_map[time_key]
+                
+                # Vectorized indexing by creating a compound key array
+                for i, (year, day) in enumerate(zip(years_array, days_array)):
+                    time_indices[i] = lookup_dict.get((year, day), -1)
+            else:
+                # For yearly data, vectorized approach
+                time_indices = np.full(len(years_array), -1, dtype=np.int32)
+                
+                # Create a dictionary for faster lookups using unique years
+                unique_years = np.unique(years_array)
+                lookup_dict = {}
+                for year in unique_years:
+                    if year in time_map:
+                        lookup_dict[year] = time_map[year]
+                
+                # Vectorized year lookup
+                for i, year in enumerate(years_array):
+                    time_indices[i] = lookup_dict.get(year, -1)
+            
+            # Create a mask for valid time indices
+            valid_time_mask = time_indices >= 0
+            
+            # Combined mask for valid points
+            valid_mask = valid_lat_mask & valid_time_mask
+            
+            # Use the mask to fill the data array
+            if np.any(valid_mask):
+                lat_idx_valid = lat_indices[valid_mask]
+                time_idx_valid = time_indices[valid_mask]
+                values_valid = values[valid_mask]
+                
+                # Use numpy's advanced indexing to fill the data array
+                var_data[time_idx_valid, lat_idx_valid] = values_valid
             
             # Store this variable in all_data_vars
             all_data_vars[var_col] = ((time_dim, 'points'), var_data.copy())

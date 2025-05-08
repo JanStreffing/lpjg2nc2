@@ -26,6 +26,7 @@ import json
 from grid_utils import read_grid_information
 from file_parser import find_out_files, detect_file_structure
 from netcdf_converter import process_file
+from count_nans import analyze_netcdf, print_short_summary
 
 
 def parse_args():
@@ -117,11 +118,30 @@ def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1):
     # Process the ifs_input.out files
     output_file = process_file(out_files['ifs_input.out'], output_path, grid_info, verbose)
     
+    # Analyze NaN values in the output file
+    if output_file and os.path.exists(output_file):
+        if verbose:
+            print(f"\nAnalyzing NaN values in {output_file}...")
+        # Use the external count_nans module for analysis
+        nan_stats = analyze_netcdf(output_file, verbose=False, return_stats=True)
+        
+        if verbose:
+            print(f"NaN analysis complete: {nan_stats['total_valid_pct']:.2f}% valid data")
+    else:
+        if verbose:
+            print(f"\nSkipping NaN analysis - output file not found: {output_file}")
+        nan_stats = None
+    
     total_end_time = time.time()
     total_elapsed = total_end_time - total_start_time
     
     print(f"✅ Successfully processed ifs_input.out files")
     print(f"📁 Output saved to: {output_file}")
+    
+    # Display NaN statistics summary if available
+    if nan_stats:
+        print_short_summary(nan_stats)
+    
     print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
     
     return output_file
@@ -185,11 +205,25 @@ def main():
         
         output_file = process_file([args.file], args.output, grid_info, args.verbose)
         
+        # Analyze NaN values in the output file
+        if output_file and os.path.exists(output_file):
+            if args.verbose:
+                print(f"\nAnalyzing NaN values in {output_file}...")
+            # Use the external count_nans module for analysis
+            nan_stats = analyze_netcdf(output_file, verbose=False, return_stats=True)
+        else:
+            nan_stats = None
+        
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
         
         print(f"✅ Successfully processed: {args.file}")
         print(f"📁 Output saved to: {output_file}")
+        
+        # Display NaN statistics summary if available
+        if nan_stats:
+            print_short_summary(nan_stats)
+            
         print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
     else:
         # Find and process all .out files in run*/output folders
