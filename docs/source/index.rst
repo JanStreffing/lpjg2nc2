@@ -7,9 +7,9 @@ Welcome to lpjg2nc2's documentation
    :target: https://www.python.org/downloads/
    :alt: Python 3.8+
 
-.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
-   :target: https://opensource.org/licenses/MIT
-   :alt: License: MIT
+.. image:: https://img.shields.io/badge/License-GPLv3-blue.svg
+   :target: https://www.gnu.org/licenses/gpl-3.0
+   :alt: License: GPLv3
 
 lpjg2nc2 is a powerful tool for converting LPJ-GUESS output files (.out) to NetCDF format.
 The tool searches for run* folders in a given path, finds .out files inside their output
