@@ -15,6 +15,30 @@
 #
 import os
 import sys
+from unittest.mock import MagicMock
+
+# Check if we're running on ReadTheDocs
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+
+# Mock class to handle imports
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+# List of modules to mock
+MOCK_MODULES = [
+    'numpy', 'pandas', 'xarray', 'netCDF4', 'scipy', 'scipy.sparse', 
+    'tqdm', 'joblib', 'joblib.parallel', 'psutil', 'matplotlib', 're', 
+    'multiprocessing', 'subprocess', 'shutil', 'datetime', 'pathlib',
+    'os.path', 'glob'
+]
+
+# Apply mocks
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = Mock()
+
+# Add project to path
 sys.path.insert(0, os.path.abspath('../..'))
 
 
@@ -50,10 +74,7 @@ extensions = [
     'sphinx.ext.napoleon',
 ]
 
-# Mock imports for ReadTheDocs - prevents import errors during documentation building
-autodoc_mock_imports = ['numpy', 'pandas', 'xarray', 'netCDF4', 'tqdm', 
-                        'scipy', 'joblib', 'psutil', 'matplotlib', 're',
-                        'multiprocessing', 'subprocess', 'shutil', 'datetime']
+# Using the Mock class above instead of autodoc_mock_imports for better control
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
