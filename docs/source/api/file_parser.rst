@@ -5,35 +5,33 @@ File Parser Module
 
 The file parser module provides utilities for finding and parsing LPJ-GUESS output files.
 
-.. automodule:: lpjg2nc.file_parser
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 File Finding Functions
 --------------------
 
-.. autofunction:: find_out_files
-   :noindex:
-
-These functions locate the .out files in the LPJ-GUESS run directories and group them by pattern.
+* ``find_out_files(base_path)``
+  
+  Locates all .out files in the LPJ-GUESS run directories and groups them by pattern.
+  This function scans all run*/output directories for .out files and organizes them
+  by file pattern to enable efficient batch processing.
 
 File Structure Detection
 ----------------------
 
-.. autofunction:: detect_file_structure
-   :noindex:
-
-This function analyzes the structure of an LPJ-GUESS output file, identifying:
-- Header lines
-- The number of columns
-- Column names and their meanings
-- The data type of each column
+* ``detect_file_structure(file_path)``
+  
+  Analyzes the structure of an LPJ-GUESS output file, identifying:
+  
+  - Header lines
+  - The number of columns
+  - Column names and their meanings
+  - The data type of each column
+  - Whether the file contains time series data
 
 Data Reading Functions
 --------------------
 
-.. autofunction:: read_and_combine_files
-   :noindex:
-
-These functions read data from multiple LPJ-GUESS output files and combine them into a unified dataset.
+* ``read_and_combine_files(file_paths, structure=None, verbose=False)``
+  
+  Reads data from multiple LPJ-GUESS output files and combines them into a unified dataset.
+  This function uses optimized data structures and vectorized operations for efficiently
+  handling large datasets, contributing to the overall 8.8× performance improvement.

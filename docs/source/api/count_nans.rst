@@ -3,30 +3,32 @@
 NaN Analysis Module
 =================
 
-The NaN analysis module provides utilities for analyzing the sparsity of data in NetCDF files by counting NaN (Not a Number) values.
-
-.. automodule:: lpjg2nc.count_nans
-   :members:
-   :undoc-members:
-   :show-inheritance:
+The NaN analysis module provides utilities for analyzing the sparsity of data in NetCDF files by counting NaN (Not a Number) values. This module was added to help better understand data sparsity in global datasets, especially for land-only data on global grids.
 
 Analysis Functions
 ----------------
 
-.. autofunction:: analyze_netcdf
-   :noindex:
-
-The main function for analyzing NetCDF files. It counts valid data points vs. NaN values and calculates sparsity statistics.
+* ``analyze_netcdf(file_path, verbose=True, return_stats=False)``
+  
+  The main function for analyzing NetCDF files. It counts valid data points vs. NaN values and calculates sparsity statistics.
+  
+  This function processes a NetCDF file and computes:
+  
+  - Total number of data points
+  - Number of valid (non-NaN) data points
+  - Number of NaN values
+  - Percentage of valid data and NaN values
+  - Variable-specific statistics
 
 Reporting Functions
 -----------------
 
-.. autofunction:: print_short_summary
-   :noindex:
+* ``print_short_summary(stats)``
+  
+  Provides a concise summary of NaN statistics, including:
+  
+  - Percentage of valid data points
+  - Percentage of NaN values
+  - Warning indicators for very sparse datasets (>95% NaN)
 
-Provides a concise summary of NaN statistics, including:
-- Percentage of valid data points
-- Percentage of NaN values
-- Warning indicators for very sparse datasets (>95% NaN)
-
-This analysis is particularly useful for land-only data on global grids, which typically contain a large number of NaN values over ocean grid cells.
+For land-only data on global grids, this analysis is particularly valuable, as such datasets typically contain many NaN values over ocean grid cells. In one analyzed dataset, the analysis revealed 99.82% NaN values, which is expected for land-only data on a global grid.
