@@ -22,6 +22,35 @@ import multiprocessing
 import subprocess
 import json
 import shutil
+import psutil
+
+
+def get_memory_usage():
+    """Get current memory usage in GB."""
+    process = psutil.Process(os.getpid())
+    mem_gb = process.memory_info().rss / (1024 ** 3)
+    return mem_gb
+
+
+def get_system_memory():
+    """Get system memory info in GB."""
+    mem = psutil.virtual_memory()
+    return {
+        'total': mem.total / (1024 ** 3),
+        'available': mem.available / (1024 ** 3),
+        'used': mem.used / (1024 ** 3),
+        'percent': mem.percent
+    }
+
+
+def format_eta(seconds):
+    """Format seconds into human-readable time."""
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    elif seconds < 3600:
+        return f"{seconds/60:.1f}min"
+    else:
+        return f"{seconds/3600:.1f}h"
 
 # Import from our modules
 from lpjg2nc.grid_utils import read_grid_information
@@ -221,17 +250,17 @@ def main():
             nan_stats = None
         
         # Remap to regular grid if requested
-        if remap and output_file:
+        if args.remap and output_file:
             try:
-                resolution = float(remap)
+                resolution = float(args.remap)
                 if resolution <= 0:
-                    print(f"⚠️ Invalid resolution: {remap}. Must be a positive number.")
+                    print(f"⚠️ Invalid resolution: {args.remap}. Must be a positive number.")
                 else:
-                    remapped_file = remap_to_regular_grid(output_file, resolution, verbose=verbose)
+                    remapped_file = remap_to_regular_grid(output_file, resolution, verbose=args.verbose)
                     if remapped_file:
                         print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
             except ValueError:
-                print(f"⚠️ Invalid resolution: {remap}. Must be a number.")
+                print(f"⚠️ Invalid resolution: {args.remap}. Must be a number.")
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
@@ -304,11 +333,16 @@ def main():
                 base_cmd += f" --chunk-size {args.chunk_size}"
                 
             # Start processing patterns in parallel
+            sys_mem = get_system_memory()
             print(f"Starting parallel processing with {n_jobs} workers")
+            print(f"System memory: {sys_mem['used']:.1f}GB used / {sys_mem['total']:.1f}GB total ({sys_mem['percent']:.0f}%)")
             
             running_procs = {}
             completed = set()
+            errors = []
             pattern_idx = 0
+            start_time = time.time()
+            last_status_time = start_time
             
             # Process patterns in batches
             while pattern_idx < len(file_items) or running_procs:
@@ -318,7 +352,6 @@ def main():
                     cmd = f"{base_cmd} --pattern '{pattern}'"
                     
                     # Start the subprocess
-                    print(f"[{pattern_idx+1}/{total_patterns}] Starting: {pattern}")
                     process = subprocess.Popen(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                         universal_newlines=True, shell=True
@@ -334,12 +367,31 @@ def main():
                     if returncode is not None:  # Process has finished
                         stdout, stderr = proc.communicate()
                         if returncode != 0:
-                            print(f"Error processing pattern {pattern}:\n{stderr}")
+                            errors.append(pattern)
                         completed.add(pattern)
                     else:
                         still_running[pattern] = proc
                 
                 running_procs = still_running
+                
+                # Status update every 5 seconds
+                current_time = time.time()
+                if current_time - last_status_time >= 5.0:
+                    elapsed = current_time - start_time
+                    done = len(completed)
+                    if done > 0:
+                        rate = done / elapsed  # patterns per second
+                        remaining = total_patterns - done
+                        eta_seconds = remaining / rate if rate > 0 else 0
+                        eta_str = format_eta(eta_seconds)
+                    else:
+                        eta_str = "calculating..."
+                    
+                    sys_mem = get_system_memory()
+                    print(f"[{done}/{total_patterns}] Done | {len(running_procs)} running | "
+                          f"ETA: {eta_str} | Mem: {sys_mem['used']:.1f}/{sys_mem['total']:.1f}GB ({sys_mem['percent']:.0f}%) | "
+                          f"Errors: {len(errors)}")
+                    last_status_time = current_time
                 
                 # Brief pause
                 if running_procs:

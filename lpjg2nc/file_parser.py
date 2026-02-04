@@ -12,31 +12,45 @@ import re
 
 def find_out_files(base_path):
     """
-    Find all .out files in run*/output folders.
+    Find all .out files in run*/output folders OR directly in base_path.
+    
+    Supports two modes:
+    1. Traditional: base_path/run*/output/*.out (multiple run folders to combine)
+    2. Flat: base_path/*.out (already combined files, each file is processed individually)
     
     Parameters
     ----------
     base_path : str
-        Path to the directory containing run* folders.
+        Path to the directory containing run* folders OR directly containing .out files.
         
     Returns
     -------
     dict
         Dictionary with file basename as key and list of file paths as value.
     """
-    run_dirs = glob.glob(os.path.join(base_path, 'run*'))
     all_out_files = {}
     
-    for run_dir in run_dirs:
-        output_dir = os.path.join(run_dir, 'output')
-        if os.path.isdir(output_dir):
-            out_files = glob.glob(os.path.join(output_dir, '*.out'))
-            for out_file in out_files:
-                # Use the filename as the key, without the path
-                file_basename = os.path.basename(out_file)
-                if file_basename not in all_out_files:
-                    all_out_files[file_basename] = []
-                all_out_files[file_basename].append(out_file)
+    # First check for run*/output structure
+    run_dirs = glob.glob(os.path.join(base_path, 'run*'))
+    
+    if run_dirs:
+        # Traditional mode: run*/output/*.out
+        for run_dir in run_dirs:
+            output_dir = os.path.join(run_dir, 'output')
+            if os.path.isdir(output_dir):
+                out_files = glob.glob(os.path.join(output_dir, '*.out'))
+                for out_file in out_files:
+                    file_basename = os.path.basename(out_file)
+                    if file_basename not in all_out_files:
+                        all_out_files[file_basename] = []
+                    all_out_files[file_basename].append(out_file)
+    else:
+        # Flat mode: *.out directly in base_path (already combined)
+        out_files = glob.glob(os.path.join(base_path, '*.out'))
+        for out_file in out_files:
+            file_basename = os.path.basename(out_file)
+            # Each file is its own entry (no combining needed)
+            all_out_files[file_basename] = [out_file]
     
     return all_out_files
 

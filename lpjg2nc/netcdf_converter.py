@@ -18,6 +18,72 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 from lpjg2nc.grid_utils import match_coordinates_to_grid
 
+try:
+    import cftime
+    HAS_CFTIME = True
+except ImportError:
+    HAS_CFTIME = False
+
+
+def make_time(year, month=1, day=1):
+    """
+    Create a time value that works for historical dates (before 1677).
+    Uses cftime for dates outside pandas range.
+    """
+    year, month, day = int(year), int(month), int(day)
+    
+    # pandas Timestamp range: 1677-2262
+    if 1677 <= year <= 2262:
+        return pd.Timestamp(year=year, month=month, day=day)
+    elif HAS_CFTIME:
+        return cftime.DatetimeProlepticGregorian(year, month, day)
+    else:
+        # Fallback: return a simple object with year/month/day attributes
+        return type('SimpleDate', (), {'year': year, 'month': month, 'day': day})()
+
+
+def time_to_numeric(times, units='days since 0001-01-01', calendar='proleptic_gregorian'):
+    """
+    Convert time objects to numeric values (days since reference).
+    Works with both pandas Timestamps and cftime objects.
+    """
+    if HAS_CFTIME:
+        # Use cftime for robust conversion
+        numeric_times = []
+        for t in times:
+            if hasattr(t, 'year'):
+                # Calculate days since year 1
+                cf_time = cftime.DatetimeProlepticGregorian(t.year, t.month, t.day)
+                ref = cftime.DatetimeProlepticGregorian(1, 1, 1)
+                delta = cf_time - ref
+                numeric_times.append(delta.days)
+        return np.array(numeric_times, dtype=np.float64)
+    else:
+        # Simple calculation: days since year 1
+        numeric_times = []
+        for t in times:
+            if hasattr(t, 'year'):
+                # Approximate: 365.25 days per year
+                days = (t.year - 1) * 365.25 + (t.month - 1) * 30.4375 + t.day
+                numeric_times.append(days)
+        return np.array(numeric_times, dtype=np.float64)
+
+
+def get_dayofyear(t):
+    """
+    Get day of year from a time object.
+    Works with both pandas Timestamps and cftime objects.
+    """
+    if hasattr(t, 'dayofyear'):
+        return t.dayofyear
+    elif hasattr(t, 'timetuple'):
+        return t.timetuple().tm_yday
+    else:
+        # Manual calculation
+        days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        doy = sum(days_in_month[:t.month - 1]) + t.day
+        return doy
+
 def get_parallel_config(verbose=False, requested_jobs=0, requested_chunk_size=0):
     """
     Determines optimal parallel processing configuration based on system resources.
@@ -196,36 +262,42 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     years = sorted(combined_df['Year'].unique())
     
     # Create datetime objects based on available time information
+    # Uses make_time() for historical dates before 1677
     if 'Day' in combined_df.columns and 'Month' in combined_df.columns:
         # Data has year, month and day - use the exact day
         time_groups = combined_df.groupby(['Year', 'Month', 'Day']).size().reset_index()[['Year', 'Month', 'Day']]
-        times = [pd.Timestamp(year=int(year), month=int(month), day=int(day)) 
+        times = [make_time(year, month, day) 
                 for year, month, day in zip(time_groups['Year'], time_groups['Month'], time_groups['Day'])]
     elif 'Day' in combined_df.columns:
-        # Data has year and day of year - use the exact day of year
+        # Data has year and day of year - convert day of year to month/day
         time_groups = combined_df.groupby(['Year', 'Day']).size().reset_index()[['Year', 'Day']]
-        times = [pd.Timestamp(year=int(year), month=1, day=1) + pd.Timedelta(days=int(day)-1) 
-                for year, day in zip(time_groups['Year'], time_groups['Day'])]
+        times = []
+        for year, doy in zip(time_groups['Year'], time_groups['Day']):
+            # Convert day of year to month and day
+            year_int = int(year)
+            doy_int = int(doy)
+            # Simple conversion (ignoring leap years for historical dates)
+            days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            month = 1
+            day = doy_int
+            for m, dm in enumerate(days_in_month, 1):
+                if day <= dm:
+                    month = m
+                    break
+                day -= dm
+            times.append(make_time(year_int, month, max(1, day)))
     elif 'Month' in combined_df.columns:
         # Data has year and month - use the middle of the month
         time_groups = combined_df.groupby(['Year', 'Month']).size().reset_index()[['Year', 'Month']]
         times = []
         for year, month in zip(time_groups['Year'], time_groups['Month']):
-            # Calculate days in month to find the middle day
             year_int = int(year)
             month_int = int(month)
-            # Find the last day of the month
-            if month_int == 12:
-                last_day = 31  # December always has 31 days
-            else:
-                last_day = (pd.Timestamp(year=year_int, month=month_int+1, day=1) - 
-                            pd.Timedelta(days=1)).day
-            # Use the middle day of the month
-            middle_day = last_day // 2
-            times.append(pd.Timestamp(year=year_int, month=month_int, day=middle_day))
+            # Use day 15 as middle of month (simpler, works for all dates)
+            times.append(make_time(year_int, month_int, 15))
     else:
         # Data has only years - use the middle of the year (July 1st)
-        times = [pd.Timestamp(year=int(year), month=7, day=1) for year in years]
+        times = [make_time(int(year), 7, 1) for year in years]
     
     # Always use 'time' dimension for consistency across all file types
     time_dim = 'time'
@@ -292,7 +364,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         times = []
         for year in years:
             for month in range(1, 13):  # 1-12 for all months
-                times.append(pd.Timestamp(year=int(year), month=month, day=1))
+                times.append(make_time(int(year), month, 1))
         
         if verbose:
             print(f"Created {len(times)} time points across {len(years)} years")
@@ -442,7 +514,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             for i, t in enumerate(times):
                 year = t.year
                 if has_day:
-                    day = t.dayofyear
+                    day = get_dayofyear(t)
                     time_map[(year, day)] = i
                 else:
                     time_map[year] = i
@@ -586,7 +658,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             time_map = {}
             for i, t in enumerate(times):
                 year = t.year
-                day = t.dayofyear
+                day = get_dayofyear(t)
                 time_map[(year, day)] = i
                 
             if is_monthly_file:
@@ -950,9 +1022,8 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     
     # Add time coordinate with proper encoding for CDO compatibility
     # Explicitly set the time dimension with units and calendar attributes
-    # Convert timestamps to days since a reference date
-    reference_date = pd.Timestamp('2000-01-01')
-    days_since_reference = [(t - reference_date).total_seconds() / (24 * 3600) for t in times]
+    # Convert timestamps to days since a reference date using cftime-compatible method
+    days_since_reference = time_to_numeric(times)
     
     coords['time'] = ('time', np.array(days_since_reference))
     
@@ -978,8 +1049,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     
     # Add proper time coordinate attributes for CDO compatibility
     # Create an explicit time variable with correct attributes for CDO
-    reference_date = pd.Timestamp('2000-01-01')
-    days_since_reference = np.array([(t - reference_date).total_seconds() / (24 * 3600) for t in times])
+    days_since_reference = time_to_numeric(times)
     
     # Explicitly set the time variable with proper units and encoding
     # This is essential for CDO to recognize the time dimension
@@ -988,7 +1058,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     ds['time'].attrs['long_name'] = 'time'
     ds['time'].attrs['axis'] = 'T'
     ds['time'].attrs['calendar'] = 'standard'
-    ds['time'].attrs['units'] = 'days since 2000-01-01 00:00:00'
+    ds['time'].attrs['units'] = 'days since 0001-01-01 00:00:00'
     
     # Add coordinate metadata
     if 'points' in ds.coords:
@@ -1091,6 +1161,12 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             expanded_data_vars[var_name] = ((dims[0], 'points'), expanded_var)
         
         # Use the expanded data and full coordinates
+    else:
+        # No full grid available - use empty dict for expanded_data_vars
+        expanded_data_vars = {}
+        full_sorted_lats = sorted_lats
+        full_sorted_lons = sorted_lons
+        
     # Expand all variables to the full grid without losing any
     # Note: We must create a NEW dictionary to avoid modifying the dict during iteration
     old_data_vars = all_data_vars.copy()
@@ -1129,12 +1205,13 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     if verbose:
         print(f"Coordinate processing completed in {coord_processing_time:.2f} seconds")
     
-    if verbose:
+    # Only print expansion stats if we actually did grid expansion
+    if have_full_grid and verbose:
         expansion_time = time.time() - t_expand
         print(f"    Grid expansion took {expansion_time:.2f} seconds")
         print(f"    Final grid has {total_points} points with {matched_count} data points")
         print(f"    Expansion speed: {total_points / expansion_time:.0f} points/sec")
-    else:
+    elif not have_full_grid:
         if verbose:
             print("Creating xarray dataset with processed points only...")
             print(f"Using grid with {len(sorted_lats)} points from output files")
@@ -1226,33 +1303,11 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             # This is crucial for CDO to recognize the time dimension
             if 'time' in ds.dims and 'time' not in ds.coords:
                 # Create explicit time coordinate if missing
-                reference_date = pd.Timestamp('2000-01-01')
-                days_since_reference = [(t - reference_date).total_seconds() / (24 * 3600) for t in times]
+                days_since_reference = time_to_numeric(times)
                 ds = ds.assign_coords(time=('time', days_since_reference))
                 
-            # Ensure time has proper attributes and encoding
-            if 'time' in ds.coords:
-                # Check if time is already datetime64 format (for daily files)
-                # If so, don't add units/calendar attributes to avoid conflicts
-                if np.issubdtype(ds.time.dtype, np.datetime64):
-                    # For datetime64 time arrays, only add non-conflicting attributes
-                    # We must not add calendar or units to avoid xarray encoding conflicts
-                    ds.time.attrs.update({
-                        'standard_name': 'time',
-                        'long_name': 'time',
-                        'axis': 'T'
-                    })
-                else:
-                    # For monthly/yearly, add full set of attributes including units/calendar
-                    ds.time.attrs.update({
-                        'standard_name': 'time',
-                        'long_name': 'time',
-                        'axis': 'T',
-                        'calendar': 'standard',
-                        'units': 'days since 2000-01-01 00:00:00'
-                    })
-                # Time coordinate is already set with proper attributes
-                # No special encoding needed as units/calendar are attributes, not encoding parameters
+            # Time attributes are already set earlier in the code
+            # No need to set them again here
                 
             # Write to NetCDF with proper encoding
             ds.to_netcdf(full_output_path, encoding=encoding, unlimited_dims=['time'])
