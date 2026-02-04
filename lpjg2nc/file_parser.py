@@ -76,11 +76,14 @@ def detect_file_structure(file_path):
     # Check for depth columns
     depth_cols = [col for col in columns if col.startswith('Depth')]
     has_day = 'Day' in columns
+    has_month = 'Month' in columns or 'Mth' in columns
     
-    # Skip the first columns (Lon, Lat, Year, Day if present)
+    # Skip the first columns (Lon, Lat, Year, Day/Month if present)
     start_idx = 3  # Default: Lon, Lat, Year
     if has_day:
         start_idx = 4  # Lon, Lat, Year, Day
+    elif has_month:
+        start_idx = 4  # Lon, Lat, Year, Month/Mth
     
     # Get the variable columns (all columns after the fixed ones)
     if depth_cols:

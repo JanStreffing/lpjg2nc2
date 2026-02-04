@@ -13,9 +13,11 @@ lpjg2nc2 is a powerful tool for converting LPJ-GUESS output files (.out) to NetC
 * **Efficient Processing**: Convert LPJ-GUESS .out files to NetCDF with proper coordinates and metadata
 * **High Performance**: Vectorized implementation delivers up to 20× speedup compared to point-by-point processing
 * **Parallel Processing**: Two-level parallelization optimizes conversion on multi-core systems
+* **3D Depth-Layer Support**: Full support for 3D files with multiple soil depth layers (e.g., mrsll, mrsol, tsl)
 * **Flexible Configuration**: Control various aspects of the conversion process
 * **Grid Handling**: Process both 2D and 3D data (with depth levels), preserving spatial coordinates
-* **Time Dimensions**: Handle time series data (years, months, and days, if present)
+* **Time Dimensions**: Handle time series data (years, months, and days) with proper cftime support for historical dates
+* **Error Logging**: Comprehensive error tracking and logging during parallel processing
 * **Grid Remapping**: Option to remap to regular global grids using CDO
 * **Data Analysis**: Built-in analysis of NaN values to understand data sparsity in global datasets
 * **Test Mode**: Option to process specific files for testing

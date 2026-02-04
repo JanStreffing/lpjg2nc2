@@ -235,6 +235,15 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         print("Reading and combining data from all input files...")
     combined_df = read_and_combine_files(file_paths)
     
+    # Normalize column names - handle aliases (must happen before any column-based logic)
+    # 'Mth' is sometimes used instead of 'Month'
+    if 'Mth' in combined_df.columns and 'Month' not in combined_df.columns:
+        combined_df = combined_df.rename(columns={'Mth': 'Month'})
+        # Also update the structure columns list
+        columns = [c if c != 'Mth' else 'Month' for c in columns]
+        if verbose:
+            print("Renamed 'Mth' column to 'Month'")
+    
     # Calculate reading time
     reading_end_time = time.time()
     reading_time = reading_end_time - reading_start_time
@@ -334,6 +343,21 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     else:
         # Standard format - each column after coordinates is a separate variable
         var_columns = columns[start_idx:]
+        
+        # Filter out coordinate columns that shouldn't be treated as data variables
+        coord_col_names = ['Lon', 'Lat', 'Year', 'Day', 'Month', 'Mth']
+        var_columns = [c for c in var_columns if c not in coord_col_names]
+        
+        # For daily files with generic column names like "Total", use filename for variable name
+        if has_day and len(var_columns) == 1 and var_columns[0] in ['Total', 'Value', 'total', 'value']:
+            base_filename = os.path.basename(file_paths[0])
+            # Extract variable name: lai_daily_1350.out -> lai
+            var_name = os.path.splitext(base_filename)[0].split('_')[0]
+            # Create mapping from original column to new name
+            original_col = var_columns[0]
+            var_columns = [var_name]
+            # Rename the column in the dataframe
+            combined_df = combined_df.rename(columns={original_col: var_name})
         
     # Apply pattern filter if specified (for ifs_input.out files mostly)
     if pattern_filter and pattern_filter in var_columns:
@@ -510,12 +534,16 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             values = combined_df[var_col].values
             
             # Build time index mapping
+            has_month = 'Month' in combined_df.columns
             time_map = {}
             for i, t in enumerate(times):
                 year = t.year
                 if has_day:
                     day = get_dayofyear(t)
                     time_map[(year, day)] = i
+                elif has_month:
+                    month = t.month
+                    time_map[(year, month)] = i
                 else:
                     time_map[year] = i
             
@@ -549,6 +577,22 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
                 # Vectorized indexing by creating a compound key array
                 for i, (year, day) in enumerate(zip(years_array, days_array)):
                     time_indices[i] = lookup_dict.get((year, day), -1)
+            elif has_month:
+                # For monthly data, use (year, month) tuples
+                months_array = combined_df['Month'].values.astype(np.int32)
+                time_indices = np.full(len(years_array), -1, dtype=np.int32)
+                
+                # Create a dictionary for faster lookups
+                unique_time_pairs = set(zip(years_array, months_array))
+                lookup_dict = {}
+                for year, month in unique_time_pairs:
+                    time_key = (year, month)
+                    if time_key in time_map:
+                        lookup_dict[(year, month)] = time_map[time_key]
+                
+                # Vectorized indexing
+                for i, (year, month) in enumerate(zip(years_array, months_array)):
+                    time_indices[i] = lookup_dict.get((year, month), -1)
             else:
                 # For yearly data, vectorized approach
                 time_indices = np.full(len(years_array), -1, dtype=np.int32)
@@ -1224,8 +1268,11 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     }
     
     # Add time or year coordinate
+    # Use numeric time values for ncview compatibility (cftime objects cause dtype issues)
     if has_day:
-        coords['time'] = ('time', times)
+        # Convert times to numeric days since reference for ncview compatibility
+        time_numeric = time_to_numeric(times)
+        coords['time'] = ('time', time_numeric)
     else:
         coords['year'] = ('year', years)
 
@@ -1342,7 +1389,7 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
 
 
 def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inner_jobs=0, chunk_size=0):
-    """Placeholder for 3D file processing that will be reimplemented in the future.
+    """Process 3D depth-layer files and convert to NetCDF.
     
     Parameters
     ----------
@@ -1357,12 +1404,276 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         
     Returns
     -------
-    str or None
-        Path to the created NetCDF file or None if processing is disabled.
+    str
+        Path to the created NetCDF file.
     """
+    total_start_time = time.time()
+    
     if verbose:
-        print("3D file processing is temporarily disabled. 3D support will be added back soon.")
-    return None
+        print(f"Processing 3D file: {os.path.basename(file_paths[0])}")
+    
+    # Get file structure
+    from lpjg2nc.file_parser import detect_file_structure, read_and_combine_files
+    
+    structure = detect_file_structure(file_paths[0])
+    columns = structure['columns']
+    
+    # Determine if the file has days or months
+    has_day = structure['has_day']
+    
+    # Read and combine files
+    reading_start_time = time.time()
+    if verbose:
+        print("Reading and combining data from all input files...")
+    combined_df = read_and_combine_files(file_paths)
+    
+    # Normalize column names
+    if 'Mth' in combined_df.columns and 'Month' not in combined_df.columns:
+        combined_df = combined_df.rename(columns={'Mth': 'Month'})
+        columns = [c if c != 'Mth' else 'Month' for c in columns]
+        if verbose:
+            print("Renamed 'Mth' column to 'Month'")
+    
+    reading_end_time = time.time()
+    reading_time = reading_end_time - reading_start_time
+    
+    # Extract depth columns
+    depth_cols = [col for col in columns if col.startswith('Depth')]
+    if not depth_cols:
+        raise ValueError("No depth columns found in 3D file")
+    
+    # Extract depth values from column names (e.g., 'Depth0.1' -> 0.1)
+    depth_values = []
+    for col in depth_cols:
+        depth_str = col.replace('Depth', '')
+        depth_values.append(float(depth_str))
+    
+    if verbose:
+        print(f"Found {len(depth_values)} depth levels: {depth_values}")
+    
+    # Get coordinates
+    lons = combined_df['Lon'].values
+    lats = combined_df['Lat'].values
+    
+    # Use grid information if available
+    if grid_info:
+        if verbose:
+            print("Using grid information from grids.nc")
+        grid_lons = grid_info['lon']
+        grid_lats = grid_info['lat']
+    else:
+        if verbose:
+            print("Using coordinates from .out files")
+        grid_lons = np.unique(lons)
+        grid_lats = np.unique(lats)
+    
+    # Create time objects (same logic as 2D)
+    years = sorted(combined_df['Year'].unique())
+    
+    if 'Day' in combined_df.columns and 'Month' in combined_df.columns:
+        time_groups = combined_df.groupby(['Year', 'Month', 'Day']).size().reset_index()[['Year', 'Month', 'Day']]
+        times = [make_time(year, month, day) 
+                for year, month, day in zip(time_groups['Year'], time_groups['Month'], time_groups['Day'])]
+    elif 'Day' in combined_df.columns:
+        time_groups = combined_df.groupby(['Year', 'Day']).size().reset_index()[['Year', 'Day']]
+        times = []
+        for year, doy in zip(time_groups['Year'], time_groups['Day']):
+            year_int = int(year)
+            doy_int = int(doy)
+            days_in_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            month = 1
+            day = doy_int
+            for m, dm in enumerate(days_in_month, 1):
+                if day <= dm:
+                    month = m
+                    break
+                day -= dm
+            times.append(make_time(year_int, month, max(1, day)))
+    elif 'Month' in combined_df.columns:
+        time_groups = combined_df.groupby(['Year', 'Month']).size().reset_index()[['Year', 'Month']]
+        times = []
+        for year, month in zip(time_groups['Year'], time_groups['Month']):
+            year_int = int(year)
+            month_int = int(month)
+            times.append(make_time(year_int, month_int, 15))
+    else:
+        time_groups = combined_df.groupby(['Year']).size().reset_index()[['Year']]
+        times = [make_time(year, 7, 1) for year in time_groups['Year']]
+    
+    if verbose:
+        print(f"Created {len(times)} time points")
+    
+    # Create coordinate mapping
+    sorted_lats = np.array(sorted(set(zip(lats, lons)), key=lambda x: (x[0], x[1])))[:, 0]
+    sorted_lons = np.array(sorted(set(zip(lats, lons)), key=lambda x: (x[0], x[1])))[:, 1]
+    coord_to_idx = {(lat, lon): i for i, (lat, lon) in enumerate(zip(sorted_lats, sorted_lons))}
+    
+    # Determine variable name from filename
+    base_filename = os.path.basename(file_paths[0])
+    var_name = os.path.splitext(base_filename)[0].split('_')[0]
+    
+    if verbose:
+        print(f"Variable name: {var_name}")
+        print(f"Processing 3D data array: time={len(times)}, depth={len(depth_values)}, points={len(sorted_lats)}")
+    
+    # Create 3D data array (time, depth, points)
+    var_data = np.full((len(times), len(depth_values), len(sorted_lats)), np.nan)
+    
+    # Build time index mapping
+    has_month = 'Month' in combined_df.columns
+    time_map = {}
+    for i, t in enumerate(times):
+        year = t.year
+        if has_day:
+            day = get_dayofyear(t)
+            time_map[(year, day)] = i
+        elif has_month:
+            month = t.month
+            time_map[(year, month)] = i
+        else:
+            time_map[year] = i
+    
+    # Fill the data array
+    years_array = combined_df['Year'].values.astype(np.int32)
+    lats_array = combined_df['Lat'].values
+    lons_array = combined_df['Lon'].values
+    
+    # Create point indices
+    point_indices = np.array([coord_to_idx.get((lat, lon), -1) 
+                              for lat, lon in zip(lats_array, lons_array)])
+    valid_point_mask = point_indices >= 0
+    
+    # Create time indices
+    if has_day:
+        days_array = combined_df['Day'].values.astype(np.int32)
+        time_indices = np.full(len(years_array), -1, dtype=np.int32)
+        unique_time_pairs = set(zip(years_array, days_array))
+        lookup_dict = {}
+        for year, day in unique_time_pairs:
+            time_key = (year, day)
+            if time_key in time_map:
+                lookup_dict[(year, day)] = time_map[time_key]
+        for i, (year, day) in enumerate(zip(years_array, days_array)):
+            time_indices[i] = lookup_dict.get((year, day), -1)
+    elif has_month:
+        months_array = combined_df['Month'].values.astype(np.int32)
+        time_indices = np.full(len(years_array), -1, dtype=np.int32)
+        unique_time_pairs = set(zip(years_array, months_array))
+        lookup_dict = {}
+        for year, month in unique_time_pairs:
+            time_key = (year, month)
+            if time_key in time_map:
+                lookup_dict[(year, month)] = time_map[time_key]
+        for i, (year, month) in enumerate(zip(years_array, months_array)):
+            time_indices[i] = lookup_dict.get((year, month), -1)
+    else:
+        time_indices = np.full(len(years_array), -1, dtype=np.int32)
+        unique_years = np.unique(years_array)
+        lookup_dict = {}
+        for year in unique_years:
+            if year in time_map:
+                lookup_dict[year] = time_map[year]
+        for i, year in enumerate(years_array):
+            time_indices[i] = lookup_dict.get(year, -1)
+    
+    valid_time_mask = time_indices >= 0
+    valid_mask = valid_point_mask & valid_time_mask
+    
+    # Fill data for each depth level
+    if verbose:
+        print("Filling 3D data array...")
+    
+    for depth_idx, depth_col in enumerate(depth_cols):
+        values = combined_df[depth_col].values[valid_mask]
+        point_idx_valid = point_indices[valid_mask]
+        time_idx_valid = time_indices[valid_mask]
+        
+        var_data[time_idx_valid, depth_idx, point_idx_valid] = values
+    
+    if verbose:
+        non_nan = np.count_nonzero(~np.isnan(var_data))
+        total = var_data.size
+        print(f"Filled {non_nan}/{total} values ({100*non_nan/total:.2f}%)")
+    
+    # Convert times to numeric for ncview compatibility
+    if times and isinstance(times[0], cftime.datetime):
+        reference_date = cftime.datetime(1850, 1, 1, calendar='proleptic_gregorian')
+        time_values = np.array([(t - reference_date).days for t in times])
+        time_units = 'days since 1850-01-01'
+        time_calendar = 'proleptic_gregorian'
+    else:
+        time_values = np.arange(len(times))
+        time_units = 'time_step'
+        time_calendar = 'standard'
+    
+    # Create xarray Dataset
+    coords = {
+        'time': time_values,
+        'depth': depth_values,
+        'lat': ('points', sorted_lats),
+        'lon': ('points', sorted_lons),
+        'year': ('time', [t.year for t in times])
+    }
+    
+    data_vars = {
+        var_name: (['time', 'depth', 'points'], var_data)
+    }
+    
+    ds = xr.Dataset(data_vars, coords=coords)
+    
+    # Add attributes
+    ds['time'].attrs['units'] = time_units
+    ds['time'].attrs['calendar'] = time_calendar
+    ds['depth'].attrs['units'] = 'm'
+    ds['depth'].attrs['long_name'] = 'depth'
+    ds['depth'].attrs['positive'] = 'down'
+    ds['lat'].attrs['units'] = 'degrees_north'
+    ds['lon'].attrs['units'] = 'degrees_east'
+    ds[var_name].attrs['long_name'] = var_name
+    
+    # Save to NetCDF
+    # Check if the output_path is a directory or file
+    if os.path.isdir(output_path) or output_path.endswith('/'):
+        # It's a directory, so generate a filename based on the input file
+        base_input_name = os.path.basename(file_paths[0])
+        file_base = os.path.splitext(base_input_name)[0]  # Remove extension
+        filename = f"{file_base}.nc"
+        full_output_path = os.path.join(output_path, filename)
+    else:
+        # It's already a file path
+        full_output_path = output_path
+    
+    if verbose:
+        print(f"Saving to {full_output_path}...")
+    
+    os.makedirs(os.path.dirname(os.path.abspath(full_output_path)), exist_ok=True)
+    
+    encoding = {
+        'time': {'dtype': 'float64'},
+        'depth': {'dtype': 'float32'},
+        'lat': {'dtype': 'float32'},
+        'lon': {'dtype': 'float32'},
+        var_name: {'zlib': True, 'complevel': 4, 'dtype': 'float32'}
+    }
+    
+    ds.to_netcdf(full_output_path, encoding=encoding, format='NETCDF4')
+    
+    total_time = time.time() - total_start_time
+    
+    if verbose:
+        print(f"3D file processing completed in {total_time:.2f} seconds")
+    else:
+        print(f"  Done in {total_time:.2f}s ({len(combined_df)} points)")
+        print(f" Saved in → {os.path.basename(full_output_path)}")
+    
+    # Calculate and print data coverage
+    non_nan_count = np.count_nonzero(~np.isnan(var_data))
+    total_count = var_data.size
+    valid_pct = 100.0 * non_nan_count / total_count if total_count > 0 else 0
+    nan_pct = 100.0 - valid_pct
+    print(f"📊 Data coverage: {valid_pct:.2f}% valid data, {nan_pct:.2f}% NaN values")
+    
+    return full_output_path
 
 def process_file(file_paths, output_path, grid_info=None, verbose=False, current_pattern=None, total_patterns=None, inner_jobs=0, chunk_size=0, pattern_filter=None):
     """
@@ -1402,12 +1713,8 @@ def process_file(file_paths, output_path, grid_info=None, verbose=False, current
     
     structure = detect_file_structure(file_paths[0])
     
-    # For now, only handling 2D files
+    # Route to appropriate processing function
     if structure['is_3d']:
-        if verbose:
-            print("3D file processing is temporarily disabled. 3D support will be added back soon.")
-        else:
-            print("3D file processing is temporarily disabled.")
-        return None
+        return process_3d_file(file_paths, output_path, grid_info, verbose, inner_jobs=inner_jobs, chunk_size=chunk_size)
     else:
         return process_2d_file(file_paths, output_path, grid_info, verbose, inner_jobs=inner_jobs, chunk_size=chunk_size, pattern_filter=pattern_filter)

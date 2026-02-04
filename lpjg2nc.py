@@ -340,9 +340,14 @@ def main():
             running_procs = {}
             completed = set()
             errors = []
+            error_details = {}  # Store error messages for each failed pattern
             pattern_idx = 0
             start_time = time.time()
             last_status_time = start_time
+            
+            # Create log file for errors
+            log_file = os.path.join(args.output, 'conversion_errors.log')
+            os.makedirs(args.output, exist_ok=True)
             
             # Process patterns in batches
             while pattern_idx < len(file_items) or running_procs:
@@ -368,6 +373,21 @@ def main():
                         stdout, stderr = proc.communicate()
                         if returncode != 0:
                             errors.append(pattern)
+                            error_msg = stderr.strip() if stderr else stdout.strip()
+                            error_details[pattern] = {
+                                'returncode': returncode,
+                                'stderr': error_msg[:500]  # Limit error message length
+                            }
+                            # Log error immediately
+                            print(f"\n❌ ERROR in {pattern}: exit code {returncode}")
+                            if error_msg:
+                                print(f"   {error_msg[:200]}")
+                            # Write to log file
+                            with open(log_file, 'a') as f:
+                                f.write(f"\n{'='*80}\n")
+                                f.write(f"Pattern: {pattern}\n")
+                                f.write(f"Exit code: {returncode}\n")
+                                f.write(f"Error output:\n{error_msg}\n")
                         completed.add(pattern)
                     else:
                         still_running[pattern] = proc
@@ -398,18 +418,29 @@ def main():
                     time.sleep(0.5)
             
             # Calculate success rate
-            success_count = len(completed)
-            print(f"\nCompleted {success_count} out of {total_patterns} patterns in parallel mode")
+            success_count = len(completed) - len(errors)
+            error_count = len(errors)
+            print(f"\nCompleted {len(completed)} out of {total_patterns} patterns in parallel mode")
             
             # All done in parallel mode
             total_end_time = time.time()
             total_elapsed = total_end_time - total_start_time
             
-            print(f"\n✅ Successfully processed {success_count} output patterns using {n_jobs} parallel jobs")
+            if error_count > 0:
+                print(f"\n⚠️  {error_count} patterns failed during conversion:")
+                for i, pattern in enumerate(errors[:10], 1):  # Show first 10
+                    print(f"   {i}. {pattern}")
+                if error_count > 10:
+                    print(f"   ... and {error_count - 10} more")
+                print(f"\n📋 Full error details saved to: {log_file}")
+            
+            print(f"\n✅ Successfully processed {success_count}/{total_patterns} output patterns using {n_jobs} parallel jobs")
+            if error_count > 0:
+                print(f"❌ Failed: {error_count} patterns (see {log_file} for details)")
             print(f"📁 NetCDF files saved to: {args.output}")
             print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
             
-            return 0
+            return 0 if error_count == 0 else 1
         
         # Sequential processing as fallback or if n_jobs=1
         if n_jobs == 1:
