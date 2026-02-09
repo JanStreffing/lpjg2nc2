@@ -33,8 +33,16 @@ def parse_args():
         help='Path to run_YYYYMMDD-YYYYMMDD/work directory containing runX/output folders'
     )
     parser.add_argument(
+        '-o', '--output', type=str, default=None,
+        help='Output directory for combined .out files (overrides auto-derived path)'
+    )
+    parser.add_argument(
         '-j', '--jobs', type=int, default=8,
         help='Number of parallel workers (default: 8, lower to avoid file handle exhaustion)'
+    )
+    parser.add_argument(
+        '--no-split', action='store_true',
+        help='Do not split output by year (write one file per pattern, for ec2cmor2 prep)'
     )
     return parser.parse_args()
 
@@ -94,10 +102,21 @@ def get_file_patterns(run_output_dir):
     patterns = set(os.path.basename(f) for f in files)
     return patterns
 
-def combine_files(run_folders, pattern_name, output_dir):
-    """Combine files from all run folders for a given pattern, split by year.
+def combine_files(run_folders, pattern_name, output_dir, no_split=False):
+    """Combine files from all run folders for a given pattern.
     
-    Uses streaming approach: writes directly to year-specific files to avoid memory issues.
+    Uses streaming approach: writes directly to output files to avoid memory issues.
+    
+    Parameters
+    ----------
+    run_folders : list
+        List of runX/output directory paths.
+    pattern_name : str
+        Name of the .out file pattern (e.g. 'agpp.out').
+    output_dir : str
+        Directory to write combined output.
+    no_split : bool
+        If True, write a single file per pattern without splitting by year.
     """
     header = None
     year_col_idx = None
@@ -115,15 +134,23 @@ def combine_files(run_folders, pattern_name, output_dir):
                     if i == 0:
                         if header is None:
                             header = line
-                            # Find Year column index
-                            cols = line.split()
-                            try:
-                                year_col_idx = cols.index('Year')
-                            except ValueError:
-                                year_col_idx = None
+                            if not no_split:
+                                # Find Year column index
+                                cols = line.split()
+                                try:
+                                    year_col_idx = cols.index('Year')
+                                except ValueError:
+                                    year_col_idx = None
                         continue
                     
-                    if year_col_idx is not None:
+                    if no_split:
+                        # Single output file per pattern
+                        if 'all' not in year_files:
+                            output_file = os.path.join(output_dir, pattern_name)
+                            year_files['all'] = open(output_file, 'w')
+                            year_files['all'].write(header)
+                        year_files['all'].write(line)
+                    elif year_col_idx is not None:
                         # Extract year from this line
                         parts = line.split()
                         if len(parts) > year_col_idx:
@@ -153,8 +180,8 @@ def combine_files(run_folders, pattern_name, output_dir):
 
 def process_pattern(args):
     """Wrapper for parallel processing."""
-    run_folders, pattern, output_dir = args
-    combine_files(run_folders, pattern, output_dir)
+    run_folders, pattern, output_dir, no_split = args
+    combine_files(run_folders, pattern, output_dir, no_split=no_split)
     return pattern
 
 
@@ -165,12 +192,21 @@ def main():
     paths = derive_paths(args.run_path)
     print(f"Run path: {paths['run_path']}")
     print(f"Date range: {paths['date_range']}")
-    print(f"Output .out dir: {paths['out_dir']}")
-    print(f"Output .nc dir: {paths['nc_dir']}")
+    
+    # Use explicit output dir if provided, otherwise auto-derived
+    out_dir = os.path.abspath(args.output) if args.output else paths['out_dir']
+    nc_dir = paths['nc_dir']
+    
+    print(f"Output .out dir: {out_dir}")
+    if not args.output:
+        print(f"Output .nc dir: {nc_dir}")
+    if args.no_split:
+        print(f"Mode: no year splitting (ec2cmor2 prep)")
     
     # Create output directories
-    os.makedirs(paths['out_dir'], exist_ok=True)
-    os.makedirs(paths['nc_dir'], exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
+    if not args.output:
+        os.makedirs(nc_dir, exist_ok=True)
     
     # Get run folders
     run_folders = get_run_folders(paths['run_path'])
@@ -188,9 +224,9 @@ def main():
     
     # Prepare arguments for parallel processing
     n_workers = min(multiprocessing.cpu_count(), args.jobs)
-    print(f"\nCombining files into {paths['out_dir']} using {n_workers} workers")
+    print(f"\nCombining files into {out_dir} using {n_workers} workers")
     
-    args_list = [(run_folders, p, paths['out_dir']) for p in sorted(patterns)]
+    args_list = [(run_folders, p, out_dir, args.no_split) for p in sorted(patterns)]
     
     # Process in parallel with progress bar
     with ProcessPoolExecutor(max_workers=n_workers) as executor:
@@ -199,8 +235,9 @@ def main():
             future.result()  # Raise any exceptions
     
     print(f"\n✅ Successfully combined {len(patterns)} file patterns from {len(run_folders)} run folders")
-    print(f"📁 Combined .out files saved to: {paths['out_dir']}")
-    print(f"📁 NetCDF output directory: {paths['nc_dir']} (run lpjg2nc separately)")
+    print(f"📁 Combined .out files saved to: {out_dir}")
+    if not args.output:
+        print(f"📁 NetCDF output directory: {nc_dir} (run lpjg2nc separately)")
 
 
 if __name__ == "__main__":
