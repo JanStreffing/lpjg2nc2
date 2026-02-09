@@ -32,9 +32,14 @@ setup(
         "netCDF4>=1.5.7",
         "tqdm>=4.61.0",
     ],
+    py_modules=["combine_runs"],
     entry_points={
         "console_scripts": [
             "lpjg2nc=lpjg2nc:main",
+            "combine_runs=combine_runs:main",
+        ],
+        "esm_tools.plugins": [
+            "lpjg2nc2=combine_runs:main",
         ],
     },
     classifiers=[
