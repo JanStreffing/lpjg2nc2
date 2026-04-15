@@ -71,7 +71,9 @@ def parse_args():
     )
     parser.add_argument(
         '-f', '--file', type=str,
-        help='Specific file to process (for testing)'
+        help='Process a single variable globally. Accepts either a basename '
+             '(e.g. netAtmosLandCO2Flux_monthly.out) or a path to one such '
+             'file; all matching files under <path>/run*/output are combined.'
     )
     parser.add_argument(
         '-o', '--output', type=str, default=None,
@@ -226,17 +228,26 @@ def main():
             return
     
     if args.file:
-        # Process a specific file
-        if not os.path.isfile(args.file):
+        # Treat -f as a variable/basename selector: gather all matching files
+        # from run*/output so the variable is converted globally across runs.
+        file_basename = os.path.basename(args.file)
+        all_out_files = find_out_files(args.path)
+        if file_basename in all_out_files and all_out_files[file_basename]:
+            file_list = sorted(all_out_files[file_basename])
+            if args.verbose or len(file_list) > 1:
+                print(f"Found {len(file_list)} file(s) matching '{file_basename}' under {args.path}")
+        elif os.path.isfile(args.file):
+            file_list = [args.file]
+        else:
             print(f"Error: File not found: {args.file}")
             sys.exit(1)
-        
+
         # Read grid information if available
         if args.verbose:
             print(f"Reading grid information from {args.path}/grids.nc...")
         grid_info = read_grid_information(args.path)
-        
-        output_file = process_file([args.file], args.output, grid_info, args.verbose)
+
+        output_file = process_file(file_list, args.output, grid_info, args.verbose)
         
         # Analyze NaN values in the output file
         if output_file and os.path.exists(output_file):
