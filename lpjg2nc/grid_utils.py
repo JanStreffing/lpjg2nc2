@@ -30,11 +30,26 @@ def read_grid_information(base_path):
     
     try:
         grid_data = Dataset(grid_file)
-        
-        # Extract TL255-land.lat and TL255-land.lon
-        # The dimensions in the file are (y_TL255-land, x_TL255-land)
-        tl_lat = grid_data.variables['TL255-land.lat'][:].flatten()
-        tl_lon = grid_data.variables['TL255-land.lon'][:].flatten()
+
+        # Auto-detect the land grid variables: look for a matching
+        # '<prefix>.lat' / '<prefix>.lon' pair (e.g. 'TL255-land', 'TCO95-land').
+        var_names = list(grid_data.variables.keys())
+        lat_vars = [v for v in var_names if v.endswith('.lat')]
+        prefix = None
+        for v in lat_vars:
+            p = v[:-4]
+            if f'{p}.lon' in grid_data.variables:
+                # Prefer a '-land' grid if multiple pairs are present.
+                if prefix is None or 'land' in p.lower():
+                    prefix = p
+        if prefix is None:
+            raise KeyError(
+                f"No matching '<name>.lat'/'<name>.lon' pair found in {grid_file}. "
+                f"Available variables: {var_names}"
+            )
+
+        tl_lat = grid_data.variables[f'{prefix}.lat'][:].flatten()
+        tl_lon = grid_data.variables[f'{prefix}.lon'][:].flatten()
         
         # Get unique values for latitude and longitude
         unique_lat = np.unique(tl_lat)

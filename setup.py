@@ -31,10 +31,18 @@ setup(
         "xarray>=0.19.0",
         "netCDF4>=1.5.7",
         "tqdm>=4.61.0",
+        "psutil>=5.6.0",
+        "scipy>=1.7.0",
+        "joblib>=1.0.0",
     ],
+    py_modules=["combine_runs"],
     entry_points={
         "console_scripts": [
             "lpjg2nc=lpjg2nc:main",
+            "combine_runs=combine_runs:main",
+        ],
+        "esm_tools.plugins": [
+            "lpjg2nc2=combine_runs:main",
         ],
     },
     classifiers=[
