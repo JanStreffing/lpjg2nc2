@@ -182,6 +182,27 @@ def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=Non
 
 
 
+def remap_to_regular_grid_if_requested(output_file, args):
+    """Remap output_file to a regular grid if args.remap was given.
+
+    Shared by the -f (single-variable), --pattern (parallel subprocess) and
+    sequential bulk code paths so --remap applies consistently regardless of
+    how a pattern was processed.
+    """
+    if not (args.remap and output_file):
+        return
+    try:
+        resolution = float(args.remap)
+        if resolution <= 0:
+            print(f"⚠️ Invalid resolution: {args.remap}. Must be a positive number.")
+        else:
+            remapped_file = remap_to_regular_grid(output_file, resolution, verbose=args.verbose)
+            if remapped_file:
+                print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
+    except ValueError:
+        print(f"⚠️ Invalid resolution: {args.remap}. Must be a number.")
+
+
 def run_subprocess(cmd):
     """Run a subprocess and return True if it succeeded."""
     try:
@@ -261,18 +282,8 @@ def main():
             nan_stats = None
         
         # Remap to regular grid if requested
-        if args.remap and output_file:
-            try:
-                resolution = float(args.remap)
-                if resolution <= 0:
-                    print(f"⚠️ Invalid resolution: {args.remap}. Must be a positive number.")
-                else:
-                    remapped_file = remap_to_regular_grid(output_file, resolution, verbose=args.verbose)
-                    if remapped_file:
-                        print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
-            except ValueError:
-                print(f"⚠️ Invalid resolution: {args.remap}. Must be a number.")
-        
+        remap_to_regular_grid_if_requested(output_file, args)
+
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
         
@@ -307,10 +318,11 @@ def main():
             if pattern_name in out_files:
                 file_paths = out_files[pattern_name]
                 # Process just this pattern
-                output_file = process_file(file_paths, args.output, grid_info, args.verbose, 
+                output_file = process_file(file_paths, args.output, grid_info, args.verbose,
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     print(f"Successfully processed: {pattern_name} -> {os.path.basename(output_file)}")
+                    remap_to_regular_grid_if_requested(output_file, args)
                     return 0
                 else:
                     print(f"Failed to process: {pattern_name}")
@@ -342,7 +354,9 @@ def main():
                 base_cmd += f" --inner-jobs {args.inner_jobs}"
             if args.chunk_size > 0:
                 base_cmd += f" --chunk-size {args.chunk_size}"
-                
+            if args.remap:
+                base_cmd += f" --remap '{args.remap}'"
+
             # Start processing patterns in parallel
             sys_mem = get_system_memory()
             print(f"Starting parallel processing with {n_jobs} workers")
@@ -457,13 +471,15 @@ def main():
         if n_jobs == 1:
             processed_files = []
             # Process each file pattern sequentially
-            for i, (file_name, file_paths) in enumerate(file_items):
+            for i, file_name in enumerate(file_items):
+                file_paths = out_files[file_name]
                 current_pattern = i + 1
                 output_file = process_file(file_paths, args.output, grid_info, args.verbose,
                                           current_pattern=current_pattern, total_patterns=total_patterns,
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     processed_files.append(output_file)
+                    remap_to_regular_grid_if_requested(output_file, args)
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
