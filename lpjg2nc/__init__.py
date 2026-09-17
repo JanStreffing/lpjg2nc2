@@ -12,6 +12,9 @@ try:
     from lpjg2nc.netcdf_converter import process_file
     from lpjg2nc.count_nans import analyze_netcdf, print_short_summary
     from lpjg2nc.cdo_interpolation import remap_to_regular_grid
+    # expose main() at the package level for the 'lpjg2nc' console-script
+    # entry point (setup.py: entry_points console_scripts "lpjg2nc=lpjg2nc:main")
+    from lpjg2nc.cli import main
 except ImportError:
     # When building docs, these imports may fail if dependencies aren't installed
     pass
