@@ -31,6 +31,9 @@ setup(
         "xarray>=0.19.0",
         "netCDF4>=1.5.7",
         "tqdm>=4.61.0",
+        "psutil>=5.6.0",
+        "scipy>=1.7.0",
+        "joblib>=1.0.0",
     ],
     py_modules=["combine_runs"],
     entry_points={
