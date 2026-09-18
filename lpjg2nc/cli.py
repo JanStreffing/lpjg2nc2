@@ -53,11 +53,11 @@ def format_eta(seconds):
         return f"{seconds/3600:.1f}h"
 
 # Import from our modules
-from lpjg2nc.grid_utils import read_grid_information
-from lpjg2nc.file_parser import find_out_files, detect_file_structure
-from lpjg2nc.netcdf_converter import process_file
-from lpjg2nc.count_nans import analyze_netcdf, print_short_summary
-from lpjg2nc.cdo_interpolation import remap_to_regular_grid
+from .grid_utils import read_grid_information
+from .file_parser import find_out_files, detect_file_structure
+from .netcdf_converter import process_file
+from .count_nans import analyze_netcdf, print_short_summary
+from .cdo_interpolation import remap_to_regular_grid, REMAP_OPERATORS
 
 
 def parse_args():
@@ -71,7 +71,9 @@ def parse_args():
     )
     parser.add_argument(
         '-f', '--file', type=str,
-        help='Specific file to process (for testing)'
+        help='Process a single variable globally. Accepts either a basename '
+             '(e.g. netAtmosLandCO2Flux_monthly.out) or a path to one such '
+             'file; all matching files under <path>/run*/output are combined.'
     )
     parser.add_argument(
         '-o', '--output', type=str, default=None,
@@ -82,8 +84,18 @@ def parse_args():
         help='Increase output verbosity'
     )
     parser.add_argument(
-        '--remap', type=str, metavar='RES',
-        help='Remap output to a regular global grid using CDO. Specify either resolution in degrees (e.g., 0.5, 1, 2) or grid dimensions as XxY (e.g., 360x180 for 1° grid)'
+        '--remap', type=str, nargs='?', const='remapcon,r360x180', default=None, metavar='OPERATOR,GRID',
+        help="Remap output using CDO. Takes the operator and grid exactly as CDO's own "
+             f"remap operators expect them, comma-separated: one of {', '.join(REMAP_OPERATORS)}, "
+             "followed by any grid CDO understands (a built-in name or a grid description file). "
+             "E.g. 'remapcon,r360x180' or 'remapnn,global_1'. Both parts are used verbatim in the "
+             "output filename. Bare '--remap' with no value defaults to 'remapcon,r360x180'."
+    )
+    parser.add_argument(
+        '--nc_keep_unstruc', action='store_true',
+        help='Keep the unstructured (pre-remap) NetCDF file alongside the remapped one. '
+             'By default, once --remap succeeds the unstructured file is deleted. '
+             'Has no effect unless --remap is given.'
     )
     parser.add_argument(
         '--test', type=str, choices=['ifs_input'],
@@ -161,23 +173,35 @@ def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=Non
     
     # Remap to regular grid if requested
     if remap and output_file:
-        # Handle either resolution in degrees or grid dimensions format
         remapped_file = remap_to_regular_grid(output_file, remap, verbose=verbose)
         if remapped_file:
-            # Format the grid description based on the remap parameter format
-            if 'x' in str(remap).lower():
-                print(f"📊 Created {remap} grid file: {remapped_file}")
-            else:
-                try:
-                    resolution = float(remap)
-                    print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
-                except ValueError:
-                    print(f"📊 Created remapped grid file: {remapped_file}")
+            print(f"📊 Created remapped file ({remap}): {remapped_file}")
     
     print(f"⏱️ Total processing time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes)")
     
     return output_file
 
+
+
+def remap_to_regular_grid_if_requested(output_file, args):
+    """Remap output_file to a regular grid if args.remap was given.
+
+    Shared by the -f (single-variable), --pattern (parallel subprocess) and
+    sequential bulk code paths so --remap applies consistently regardless of
+    how a pattern was processed.
+    """
+    if not (args.remap and output_file):
+        return
+    remapped_file = remap_to_regular_grid(output_file, args.remap, verbose=args.verbose)
+    if remapped_file:
+        print(f"📊 Created remapped file ({args.remap}): {remapped_file}")
+        if not args.nc_keep_unstruc:
+            try:
+                os.remove(output_file)
+                if args.verbose:
+                    print(f"🗑️ Removed unstructured file: {output_file}")
+            except OSError as e:
+                print(f"⚠️ Could not remove unstructured file {output_file}: {e}")
 
 
 def run_subprocess(cmd):
@@ -226,17 +250,26 @@ def main():
             return
     
     if args.file:
-        # Process a specific file
-        if not os.path.isfile(args.file):
+        # Treat -f as a variable/basename selector: gather all matching files
+        # from run*/output so the variable is converted globally across runs.
+        file_basename = os.path.basename(args.file)
+        all_out_files = find_out_files(args.path)
+        if file_basename in all_out_files and all_out_files[file_basename]:
+            file_list = sorted(all_out_files[file_basename])
+            if args.verbose or len(file_list) > 1:
+                print(f"Found {len(file_list)} file(s) matching '{file_basename}' under {args.path}")
+        elif os.path.isfile(args.file):
+            file_list = [args.file]
+        else:
             print(f"Error: File not found: {args.file}")
             sys.exit(1)
-        
+
         # Read grid information if available
         if args.verbose:
             print(f"Reading grid information from {args.path}/grids.nc...")
         grid_info = read_grid_information(args.path)
-        
-        output_file = process_file([args.file], args.output, grid_info, args.verbose)
+
+        output_file = process_file(file_list, args.output, grid_info, args.verbose)
         
         # Analyze NaN values in the output file
         if output_file and os.path.exists(output_file):
@@ -250,18 +283,8 @@ def main():
             nan_stats = None
         
         # Remap to regular grid if requested
-        if args.remap and output_file:
-            try:
-                resolution = float(args.remap)
-                if resolution <= 0:
-                    print(f"⚠️ Invalid resolution: {args.remap}. Must be a positive number.")
-                else:
-                    remapped_file = remap_to_regular_grid(output_file, resolution, verbose=args.verbose)
-                    if remapped_file:
-                        print(f"📊 Created {resolution}° regular grid file: {remapped_file}")
-            except ValueError:
-                print(f"⚠️ Invalid resolution: {args.remap}. Must be a number.")
-        
+        remap_to_regular_grid_if_requested(output_file, args)
+
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
         
@@ -296,10 +319,11 @@ def main():
             if pattern_name in out_files:
                 file_paths = out_files[pattern_name]
                 # Process just this pattern
-                output_file = process_file(file_paths, args.output, grid_info, args.verbose, 
+                output_file = process_file(file_paths, args.output, grid_info, args.verbose,
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     print(f"Successfully processed: {pattern_name} -> {os.path.basename(output_file)}")
+                    remap_to_regular_grid_if_requested(output_file, args)
                     return 0
                 else:
                     print(f"Failed to process: {pattern_name}")
@@ -331,7 +355,11 @@ def main():
                 base_cmd += f" --inner-jobs {args.inner_jobs}"
             if args.chunk_size > 0:
                 base_cmd += f" --chunk-size {args.chunk_size}"
-                
+            if args.remap:
+                base_cmd += f" --remap '{args.remap}'"
+                if args.nc_keep_unstruc:
+                    base_cmd += " --nc_keep_unstruc"
+
             # Start processing patterns in parallel
             sys_mem = get_system_memory()
             print(f"Starting parallel processing with {n_jobs} workers")
@@ -446,13 +474,15 @@ def main():
         if n_jobs == 1:
             processed_files = []
             # Process each file pattern sequentially
-            for i, (file_name, file_paths) in enumerate(file_items):
+            for i, file_name in enumerate(file_items):
+                file_paths = out_files[file_name]
                 current_pattern = i + 1
                 output_file = process_file(file_paths, args.output, grid_info, args.verbose,
                                           current_pattern=current_pattern, total_patterns=total_patterns,
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     processed_files.append(output_file)
+                    remap_to_regular_grid_if_requested(output_file, args)
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time

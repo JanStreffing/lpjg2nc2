@@ -16,7 +16,7 @@ import multiprocessing
 from collections import defaultdict
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from lpjg2nc.grid_utils import match_coordinates_to_grid
+from lpjg2nc.grid_utils import match_coordinates_to_grid, compute_cell_bounds
 
 try:
     import cftime
@@ -1071,10 +1071,6 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     
     coords['time'] = ('time', np.array(days_since_reference))
     
-    # Also include year as a separate coordinate for convenience
-    unique_years = sorted(set([t.year for t in times]))
-    coords['year'] = np.array(unique_years)
-    
     # Create dataset using all_data_vars
     ds = xr.Dataset(all_data_vars, coords=coords)
     
@@ -1267,14 +1263,17 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         'lon': ('points', sorted_lons),
     }
     
-    # Add time or year coordinate
-    # Use numeric time values for ncview compatibility (cftime objects cause dtype issues)
-    if has_day:
-        # Convert times to numeric days since reference for ncview compatibility
-        time_numeric = time_to_numeric(times)
-        coords['time'] = ('time', time_numeric)
-    else:
-        coords['year'] = ('year', years)
+    # Always use a properly defined 'time' coordinate (days since reference),
+    # matching the 'time' dimension every data variable already uses (see
+    # all_data_vars construction above) regardless of the source file's
+    # granularity (daily, monthly, or yearly -- 'times' already encodes the
+    # right date for each, e.g. day-15 for monthly, July 1st for yearly).
+    # A separate 'year' coordinate used to be added for non-daily files
+    # instead, but it didn't share the data variables' 'time' dimension
+    # (and for monthly files, not even the same length), leaving 'time'
+    # itself without coordinate values in the saved file.
+    time_numeric = time_to_numeric(times)
+    coords['time'] = ('time', time_numeric)
 
     # Create the dataset with full grid information - CORRECT FORMAT
     # xarray expects data_vars in this format: {'var_name': (dims, data)}    
@@ -1303,7 +1302,24 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     ds['lon'].attrs['standard_name'] = 'longitude'
     ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
-    
+
+    ds['time'].attrs['standard_name'] = 'time'
+    ds['time'].attrs['long_name'] = 'time'
+    ds['time'].attrs['axis'] = 'T'
+    ds['time'].attrs['calendar'] = 'proleptic_gregorian'
+    ds['time'].attrs['units'] = 'days since 0001-01-01'
+
+    # Add cell bounds when we have real reduced-Gaussian grid geometry to
+    # compute them from (grids.nc). Needed for conservative remapping
+    # (e.g. cdo remapycon/remapcon); without grid_info there's no reliable
+    # way to know each point's true cell extent.
+    if grid_info is not None and 'reduced_grid' in grid_info:
+        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+        ds['lat'].attrs['bounds'] = 'lat_bnds'
+        ds['lon'].attrs['bounds'] = 'lon_bnds'
+
     # Check if this is a dry run (just testing the processing)
     is_dry_run = output_path == "-" or output_path is None
     
@@ -1342,20 +1358,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             # Make sure the directory exists
             os.makedirs(os.path.dirname(os.path.abspath(full_output_path)), exist_ok=True)
             
-            # Set encoding for compression and proper time coordinate
-            # Ensure time coordinate has proper CF-compliant encoding for CDO compatibility
+            # Set encoding for compression
             encoding = {var: {'zlib': True, 'complevel': 4} for var in ds.data_vars}
-            
-            # Add proper time encoding
-            # This is crucial for CDO to recognize the time dimension
-            if 'time' in ds.dims and 'time' not in ds.coords:
-                # Create explicit time coordinate if missing
-                days_since_reference = time_to_numeric(times)
-                ds = ds.assign_coords(time=('time', days_since_reference))
-                
-            # Time attributes are already set earlier in the code
-            # No need to set them again here
-                
+
             # Write to NetCDF with proper encoding
             ds.to_netcdf(full_output_path, encoding=encoding, unlimited_dims=['time'])
             if verbose:
@@ -1595,42 +1600,57 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         total = var_data.size
         print(f"Filled {non_nan}/{total} values ({100*non_nan/total:.2f}%)")
     
-    # Convert times to numeric for ncview compatibility
-    if times and isinstance(times[0], cftime.datetime):
-        reference_date = cftime.datetime(1850, 1, 1, calendar='proleptic_gregorian')
-        time_values = np.array([(t - reference_date).days for t in times])
-        time_units = 'days since 1850-01-01'
-        time_calendar = 'proleptic_gregorian'
-    else:
-        time_values = np.arange(len(times))
-        time_units = 'time_step'
-        time_calendar = 'standard'
-    
+    # Convert times to numeric days-since-reference for CDO/ncview
+    # compatibility. Uses the same robust conversion as process_2d_file
+    # (handles both pandas Timestamps and cftime objects) instead of the
+    # previous placeholder np.arange(len(times)) with units='time_step',
+    # which was used whenever times weren't cftime objects -- the common
+    # case, since make_time() returns pandas Timestamps for any in-range
+    # year (1677-2262). That placeholder carried no real date information,
+    # which is why a separate 'year' coordinate was added as a workaround;
+    # with a properly defined time axis it's no longer needed.
+    time_values = time_to_numeric(times)
+    time_units = 'days since 0001-01-01'
+    time_calendar = 'proleptic_gregorian'
+
     # Create xarray Dataset
     coords = {
         'time': time_values,
         'depth': depth_values,
         'lat': ('points', sorted_lats),
         'lon': ('points', sorted_lons),
-        'year': ('time', [t.year for t in times])
     }
-    
+
     data_vars = {
         var_name: (['time', 'depth', 'points'], var_data)
     }
-    
+
     ds = xr.Dataset(data_vars, coords=coords)
-    
+
     # Add attributes
     ds['time'].attrs['units'] = time_units
     ds['time'].attrs['calendar'] = time_calendar
     ds['depth'].attrs['units'] = 'm'
     ds['depth'].attrs['long_name'] = 'depth'
     ds['depth'].attrs['positive'] = 'down'
+    ds['depth'].attrs['axis'] = 'Z'
+    ds['lat'].attrs['standard_name'] = 'latitude'
+    ds['lat'].attrs['long_name'] = 'latitude of grid points'
     ds['lat'].attrs['units'] = 'degrees_north'
+    ds['lon'].attrs['standard_name'] = 'longitude'
+    ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
     ds[var_name].attrs['long_name'] = var_name
-    
+
+    # Add cell bounds when we have real reduced-Gaussian grid geometry to
+    # compute them from (grids.nc); see process_2d_file for why.
+    if grid_info is not None and 'reduced_grid' in grid_info:
+        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+        ds['lat'].attrs['bounds'] = 'lat_bnds'
+        ds['lon'].attrs['bounds'] = 'lon_bnds'
+
     # Save to NetCDF
     # Check if the output_path is a directory or file
     if os.path.isdir(output_path) or output_path.endswith('/'):
