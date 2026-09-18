@@ -16,7 +16,7 @@ import multiprocessing
 from collections import defaultdict
 from tqdm import tqdm
 from joblib import Parallel, delayed
-from lpjg2nc.grid_utils import match_coordinates_to_grid
+from lpjg2nc.grid_utils import match_coordinates_to_grid, compute_cell_bounds
 
 try:
     import cftime
@@ -1303,7 +1303,18 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     ds['lon'].attrs['standard_name'] = 'longitude'
     ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
-    
+
+    # Add cell bounds when we have real reduced-Gaussian grid geometry to
+    # compute them from (grids.nc). Needed for conservative remapping
+    # (e.g. cdo remapycon/remapcon); without grid_info there's no reliable
+    # way to know each point's true cell extent.
+    if grid_info is not None and 'reduced_grid' in grid_info:
+        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+        ds['lat'].attrs['bounds'] = 'lat_bnds'
+        ds['lon'].attrs['bounds'] = 'lon_bnds'
+
     # Check if this is a dry run (just testing the processing)
     is_dry_run = output_path == "-" or output_path is None
     
@@ -1620,17 +1631,38 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     }
     
     ds = xr.Dataset(data_vars, coords=coords)
-    
+
+    # 'year' is a non-dimension coordinate sharing the 'time' dim, so xarray
+    # would otherwise auto-list it in var_name's CF "coordinates" attribute
+    # alongside lat/lon. CDO can't resolve 'year' as an x/y/z coordinate and
+    # rejects the whole file ("Unsupported array structure") when it's
+    # listed there, so pin the attribute to just lat/lon explicitly.
+    ds[var_name].encoding['coordinates'] = 'lat lon'
+
     # Add attributes
     ds['time'].attrs['units'] = time_units
     ds['time'].attrs['calendar'] = time_calendar
     ds['depth'].attrs['units'] = 'm'
     ds['depth'].attrs['long_name'] = 'depth'
     ds['depth'].attrs['positive'] = 'down'
+    ds['depth'].attrs['axis'] = 'Z'
+    ds['lat'].attrs['standard_name'] = 'latitude'
+    ds['lat'].attrs['long_name'] = 'latitude of grid points'
     ds['lat'].attrs['units'] = 'degrees_north'
+    ds['lon'].attrs['standard_name'] = 'longitude'
+    ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
     ds[var_name].attrs['long_name'] = var_name
-    
+
+    # Add cell bounds when we have real reduced-Gaussian grid geometry to
+    # compute them from (grids.nc); see process_2d_file for why.
+    if grid_info is not None and 'reduced_grid' in grid_info:
+        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+        ds['lat'].attrs['bounds'] = 'lat_bnds'
+        ds['lon'].attrs['bounds'] = 'lon_bnds'
+
     # Save to NetCDF
     # Check if the output_path is a directory or file
     if os.path.isdir(output_path) or output_path.endswith('/'):
