@@ -12,47 +12,61 @@ import re
 
 def find_out_files(base_path):
     """
-    Find all .out files in run*/output folders OR directly in base_path.
-    
-    Supports two modes:
-    1. Traditional: base_path/run*/output/*.out (multiple run folders to combine)
-    2. Flat: base_path/*.out (already combined files, each file is processed individually)
-    
+    Find all .out files anywhere under base_path, grouped by basename.
+
+    Handles any layout by searching recursively: files directly in
+    base_path (flat/already-combined mode), the traditional
+    base_path/run*/output/*.out layout (parallel domain-decomposed runs),
+    base_path/run*/*.out (no 'output' subfolder), or multiple date-range
+    segments each with their own run dir, e.g.
+    base_path/<date_range>/run*/*.out. Every match for a given pattern
+    name is combined into one entry, regardless of how deep it sits.
+
     Parameters
     ----------
     base_path : str
-        Path to the directory containing run* folders OR directly containing .out files.
-        
+        Path to the directory to search (may contain run* folders, at any
+        nesting depth, or .out files directly).
+
     Returns
     -------
     dict
         Dictionary with file basename as key and list of file paths as value.
+
+    Raises
+    ------
+    ValueError
+        If the same basename occurs more than once within one run* folder
+        (e.g. both run1/x.out and run1/output/x.out), or more than once
+        outside any run* folder. Such files would be combined as duplicate
+        data.
     """
     all_out_files = {}
-    
-    # First check for run*/output structure
-    run_dirs = glob.glob(os.path.join(base_path, 'run*'))
-    
-    if run_dirs:
-        # Traditional mode: run*/output/*.out
-        for run_dir in run_dirs:
-            output_dir = os.path.join(run_dir, 'output')
-            if os.path.isdir(output_dir):
-                out_files = glob.glob(os.path.join(output_dir, '*.out'))
-                for out_file in out_files:
-                    file_basename = os.path.basename(out_file)
-                    if file_basename not in all_out_files:
-                        all_out_files[file_basename] = []
-                    all_out_files[file_basename].append(out_file)
-    else:
-        # Flat mode: *.out directly in base_path (already combined)
-        out_files = glob.glob(os.path.join(base_path, '*.out'))
-        for out_file in out_files:
-            file_basename = os.path.basename(out_file)
-            # Each file is its own entry (no combining needed)
-            all_out_files[file_basename] = [out_file]
-    
+    seen = {}  # (run dir or base_path, basename) -> first path found
+    duplicates = []
+    for out_file in sorted(glob.glob(os.path.join(base_path, '**', '*.out'), recursive=True)):
+        file_basename = os.path.basename(out_file)
+        key = (_run_dir(out_file, base_path), file_basename)
+        if key in seen:
+            duplicates.append((seen[key], out_file))
+        else:
+            seen[key] = out_file
+        all_out_files.setdefault(file_basename, []).append(out_file)
+    if duplicates:
+        raise ValueError(
+            f"Found {len(duplicates)} .out file(s) with the same basename in the same "
+            f"run directory under {base_path}; remove the extra copies:\n"
+            + "\n".join(f"  {a}\n  {b}" for a, b in duplicates))
     return all_out_files
+
+
+def _run_dir(out_file, base_path):
+    """Innermost run<N> folder containing out_file, or base_path if none."""
+    rel_dirs = os.path.relpath(os.path.dirname(out_file), base_path).split(os.sep)
+    for i in range(len(rel_dirs), 0, -1):
+        if re.fullmatch(r'run\d+', rel_dirs[i - 1]):
+            return os.path.join(base_path, *rel_dirs[:i])
+    return base_path
 
 def detect_file_structure(file_path):
     """
@@ -142,7 +156,7 @@ def read_and_combine_files(file_paths):
     
     for file_path in file_paths:
         # Read the data
-        df = pd.read_csv(file_path, delim_whitespace=True, comment='#')
+        df = pd.read_csv(file_path, sep=r'\s+', comment='#')
         all_data.append(df)
     
     # Concatenate all dataframes

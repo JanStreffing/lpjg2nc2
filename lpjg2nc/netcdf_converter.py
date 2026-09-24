@@ -393,59 +393,27 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         if verbose:
             print(f"Created {len(times)} time points across {len(years)} years")
         
-        # Extract unique latitude and longitude values
-        unique_lats = sorted(combined_df['Lat'].unique(), reverse=True)  # North to South
-        unique_lons = sorted(combined_df['Lon'].unique())  # West to East
-        
-        if verbose:
-            print(f"Found {len(unique_lats)} unique latitudes and {len(unique_lons)} unique longitudes")
-        
-        # Create a 3D array with dimensions (time, lat, lon)
+        # Only the (lat, lon) points present in the data become grid points
+        # (sorted N->S, W->E like the other file types). A dense
+        # unique_lats x unique_lons product would be >98% NaN for land-only
+        # reduced-grid data and its cells would be meaningless.
+        point_df = (combined_df[['Lat', 'Lon']].drop_duplicates()
+                    .sort_values(by=['Lat', 'Lon'], ascending=[False, True])
+                    .reset_index(drop=True))
+        sorted_lats = point_df['Lat'].values
+        sorted_lons = point_df['Lon'].values
         n_times = len(times)
-        n_lats = len(unique_lats)
-        n_lons = len(unique_lons)
+        n_points = len(point_df)
         
         if verbose:
-            print(f"Creating data array with dimensions: time={n_times}, lats={n_lats}, lons={n_lons}")
+            print(f"Creating data array with dimensions: time={n_times}, points={n_points}")
         
-        # Create lookup dictionaries for coordinates
-        lat_to_idx = {lat: i for i, lat in enumerate(unique_lats)}
-        lon_to_idx = {lon: i for i, lon in enumerate(unique_lons)}
-        
-        # Process the data by creating a 3D array (time, lat, lon)
-        # First reshape the raw data
-        reshaped_data = np.full((n_times, n_lats * n_lons), np.nan)
-        
-        # Process each row in the original data
-        for _, row in combined_df.iterrows():
-            lat, lon, year = row['Lat'], row['Lon'], int(row['Year'])
-            lat_idx = lat_to_idx[lat]
-            lon_idx = lon_to_idx[lon]
-            point_idx = lat_idx * n_lons + lon_idx  # Flatten the 2D grid to 1D
-            
-            # Process each month for this lat/lon/year
-            for month_idx, month_name in enumerate(month_columns):
-                if month_name in row:
-                    # Calculate the time index (12 months per year)
-                    year_offset = (year - years[0]) * 12
-                    time_idx = year_offset + month_idx
-                    if time_idx < n_times:  # Safety check
-                        value = row[month_name]
-                        reshaped_data[time_idx, point_idx] = value
-        
-        # For unified approach with other file types, create a 2D array (time, points)
-        # where 'points' is a flattened grid
-        # Create flat coordinate arrays that match the reshaped data dimensions
-        flat_lats = []
-        flat_lons = []
-        for lat_idx in range(n_lats):
-            for lon_idx in range(n_lons):
-                flat_lats.append(unique_lats[lat_idx])
-                flat_lons.append(unique_lons[lon_idx])
-        
-        # Update sorted coordinates to match the flattened grid
-        sorted_lats = np.array(flat_lats)
-        sorted_lons = np.array(flat_lons)
+        point_idx = (combined_df[['Lat', 'Lon']]
+                     .merge(point_df.reset_index(), on=['Lat', 'Lon'], how='left')['index'].values)
+        year_idx = np.searchsorted(np.array(years), combined_df['Year'].values)
+        reshaped_data = np.full((n_times, n_points), np.nan)
+        for month_idx, month_name in enumerate(month_columns):
+            reshaped_data[year_idx * 12 + month_idx, point_idx] = combined_df[month_name].values
         
         # Store the variable in all_data_vars with the same dimensionality
         all_data_vars[var_name] = (('time', 'points'), reshaped_data)
@@ -1313,12 +1281,11 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     # compute them from (grids.nc). Needed for conservative remapping
     # (e.g. cdo remapycon/remapcon); without grid_info there's no reliable
     # way to know each point's true cell extent.
-    if grid_info is not None and 'reduced_grid' in grid_info:
-        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
-        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
-        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
-        ds['lat'].attrs['bounds'] = 'lat_bnds'
-        ds['lon'].attrs['bounds'] = 'lon_bnds'
+    lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+    ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+    ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+    ds['lat'].attrs['bounds'] = 'lat_bnds'
+    ds['lon'].attrs['bounds'] = 'lon_bnds'
 
     # Check if this is a dry run (just testing the processing)
     is_dry_run = output_path == "-" or output_path is None
@@ -1644,12 +1611,11 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
 
     # Add cell bounds when we have real reduced-Gaussian grid geometry to
     # compute them from (grids.nc); see process_2d_file for why.
-    if grid_info is not None and 'reduced_grid' in grid_info:
-        lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
-        ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
-        ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
-        ds['lat'].attrs['bounds'] = 'lat_bnds'
-        ds['lon'].attrs['bounds'] = 'lon_bnds'
+    lat_bnds_arr, lon_bnds_arr = compute_cell_bounds(sorted_lats, sorted_lons, grid_info)
+    ds['lat_bnds'] = (('points', 'nv'), lat_bnds_arr)
+    ds['lon_bnds'] = (('points', 'nv'), lon_bnds_arr)
+    ds['lat'].attrs['bounds'] = 'lat_bnds'
+    ds['lon'].attrs['bounds'] = 'lon_bnds'
 
     # Save to NetCDF
     # Check if the output_path is a directory or file

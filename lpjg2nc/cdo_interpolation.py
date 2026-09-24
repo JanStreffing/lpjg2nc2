@@ -85,6 +85,8 @@ def remap_to_regular_grid(input_file, remap_spec, output_file=None, verbose=Fals
             print("Error during CDO remapping")
             if verbose and result.stderr:
                 print(result.stderr)
+            if os.path.exists(output_file):
+                os.remove(output_file)  # CDO leaves a partial file behind
             return None
     except Exception as e:
         print(f"Error running CDO: {e}")
