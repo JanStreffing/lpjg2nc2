@@ -103,6 +103,11 @@ def parse_args():
              'Has no effect unless --remap is given.'
     )
     parser.add_argument(
+        '--nc_rm_ascii', action='store_true',
+        help='Delete the .out (ASCII) input files of a variable once its NetCDF file was '
+             'successfully written (and remapped, if --remap is given). By default they are kept.'
+    )
+    parser.add_argument(
         '--test', type=str, choices=['ifs_input'],
         help='Test with specific file pattern (e.g., ifs_input.out)'
     )
@@ -193,20 +198,43 @@ def remap_to_regular_grid_if_requested(output_file, args):
 
     Shared by the -f (single-variable), --pattern (parallel subprocess) and
     sequential bulk code paths so --remap applies consistently regardless of
-    how a pattern was processed.
+    how a pattern was processed. Returns the remapped file if remapping
+    succeeded, else output_file.
     """
     if not (args.remap and output_file):
-        return
+        return output_file
     remapped_file = remap_to_regular_grid(output_file, args.remap, verbose=args.verbose)
-    if remapped_file:
-        print(f"📊 Created remapped file ({args.remap}): {remapped_file}")
-        if not args.nc_keep_unstruc:
-            try:
-                os.remove(output_file)
-                if args.verbose:
-                    print(f"🗑️ Removed unstructured file: {output_file}")
-            except OSError as e:
-                print(f"⚠️ Could not remove unstructured file {output_file}: {e}")
+    if not remapped_file:
+        return output_file
+    print(f"📊 Created remapped file ({args.remap}): {remapped_file}")
+    if not args.nc_keep_unstruc:
+        try:
+            os.remove(output_file)
+            if args.verbose:
+                print(f"🗑️ Removed unstructured file: {output_file}")
+        except OSError as e:
+            print(f"⚠️ Could not remove unstructured file {output_file}: {e}")
+    return remapped_file
+
+
+def remove_ascii_if_requested(file_paths, nc_file, args):
+    """Delete the .out input files of one variable if --nc_rm_ascii is given.
+
+    Only done once the NetCDF file nc_file (the unstructured or, with --remap,
+    the remapped one) exists, i.e. after a successful conversion.
+    """
+    if not args.nc_rm_ascii:
+        return
+    if not (nc_file and os.path.exists(nc_file)):
+        print(f"⚠️ Keeping .out files: NetCDF file not found: {nc_file}")
+        return
+    for f in file_paths:
+        try:
+            os.remove(f)
+            if args.verbose:
+                print(f"🗑️ Removed ASCII file: {f}")
+        except OSError as e:
+            print(f"⚠️ Could not remove ASCII file {f}: {e}")
 
 
 def run_subprocess(cmd):
@@ -291,7 +319,8 @@ def main():
             nan_stats = None
         
         # Remap to regular grid if requested
-        remap_to_regular_grid_if_requested(output_file, args)
+        nc_file = remap_to_regular_grid_if_requested(output_file, args)
+        remove_ascii_if_requested(file_list, nc_file, args)
 
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
@@ -331,7 +360,8 @@ def main():
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     print(f"Successfully processed: {pattern_name} -> {os.path.basename(output_file)}")
-                    remap_to_regular_grid_if_requested(output_file, args)
+                    nc_file = remap_to_regular_grid_if_requested(output_file, args)
+                    remove_ascii_if_requested(file_paths, nc_file, args)
                     return 0
                 else:
                     print(f"Failed to process: {pattern_name}")
@@ -369,6 +399,8 @@ def main():
                 base_cmd += f" --remap '{args.remap}'"
                 if args.nc_keep_unstruc:
                     base_cmd += " --nc_keep_unstruc"
+            if args.nc_rm_ascii:
+                base_cmd += " --nc_rm_ascii"
 
             # Start processing patterns in parallel
             sys_mem = get_system_memory()
@@ -492,7 +524,8 @@ def main():
                                           inner_jobs=args.inner_jobs, chunk_size=args.chunk_size)
                 if output_file:
                     processed_files.append(output_file)
-                    remap_to_regular_grid_if_requested(output_file, args)
+                    nc_file = remap_to_regular_grid_if_requested(output_file, args)
+                    remove_ascii_if_requested(file_paths, nc_file, args)
         
         total_end_time = time.time()
         total_elapsed = total_end_time - total_start_time
