@@ -36,7 +36,7 @@ def get_file_pairs(out_dir, nc_dir, year=1365):
 def read_out_file(out_file, max_rows=None):
     """Read .out file and return as DataFrame."""
     try:
-        df = pd.read_csv(out_file, delim_whitespace=True, nrows=max_rows)
+        df = pd.read_csv(out_file, sep=r'\s+', nrows=max_rows)
         return df
     except Exception as e:
         return None, str(e)

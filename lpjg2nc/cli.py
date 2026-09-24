@@ -76,6 +76,11 @@ def parse_args():
              'file; all matching files under <path>/run*/output are combined.'
     )
     parser.add_argument(
+        '-g', '--grids', type=str, default=None,
+        help='Path to a grids.nc file providing the grid geometry '
+             '(default: <path>/grids.nc, if it exists)'
+    )
+    parser.add_argument(
         '-o', '--output', type=str, default=None,
         help='Output directory for NetCDF files (default: "../../outdata/lpj_guess" relative to input path)'
     )
@@ -120,7 +125,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=None):
+def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=None, grids=None):
     """Process ifs_input.out files as a test case."""
     total_start_time = time.time()
     
@@ -139,8 +144,8 @@ def process_ifs_input_test(path, output_path, verbose=False, n_jobs=1, remap=Non
     
     # Read grid information from grids.nc
     if verbose:
-        print(f"Reading grid information from {path}/grids.nc...")
-    grid_info = read_grid_information(path)
+        print(f"Reading grid information from {grids or os.path.join(path, 'grids.nc')}...")
+    grid_info = read_grid_information(path, grids)
     if grid_info and verbose:
         print(f"Found {len(grid_info['lat'])} unique latitudes and {len(grid_info['lon'])} unique longitudes")
     
@@ -246,14 +251,17 @@ def main():
     # Check if we're in test mode
     if args.test:
         if args.test == 'ifs_input':
-            process_ifs_input_test(args.path, args.output, args.verbose, remap=args.remap)
+            process_ifs_input_test(args.path, args.output, args.verbose, remap=args.remap, grids=args.grids)
             return
     
     if args.file:
         # Treat -f as a variable/basename selector: gather all matching files
         # from run*/output so the variable is converted globally across runs.
+        # Accept the basename with or without the .out suffix.
         file_basename = os.path.basename(args.file)
         all_out_files = find_out_files(args.path)
+        if file_basename not in all_out_files and not file_basename.endswith('.out'):
+            file_basename = f"{file_basename}.out"
         if file_basename in all_out_files and all_out_files[file_basename]:
             file_list = sorted(all_out_files[file_basename])
             if args.verbose or len(file_list) > 1:
@@ -266,8 +274,8 @@ def main():
 
         # Read grid information if available
         if args.verbose:
-            print(f"Reading grid information from {args.path}/grids.nc...")
-        grid_info = read_grid_information(args.path)
+            print(f"Reading grid information from {args.grids or os.path.join(args.path, 'grids.nc')}...")
+        grid_info = read_grid_information(args.path, args.grids)
 
         output_file = process_file(file_list, args.output, grid_info, args.verbose)
         
@@ -308,8 +316,8 @@ def main():
         
         # Read grid information if available
         if args.verbose:
-            print(f"Reading grid information from {args.path}/grids.nc...")
-        grid_info = read_grid_information(args.path)
+            print(f"Reading grid information from {args.grids or os.path.join(args.path, 'grids.nc')}...")
+        grid_info = read_grid_information(args.path, args.grids)
         if grid_info and args.verbose:
             print(f"Found {len(grid_info['lat'])} unique latitudes and {len(grid_info['lon'])} unique longitudes")
         
@@ -355,6 +363,8 @@ def main():
                 base_cmd += f" --inner-jobs {args.inner_jobs}"
             if args.chunk_size > 0:
                 base_cmd += f" --chunk-size {args.chunk_size}"
+            if args.grids:
+                base_cmd += f" --grids '{args.grids}'"
             if args.remap:
                 base_cmd += f" --remap '{args.remap}'"
                 if args.nc_keep_unstruc:
