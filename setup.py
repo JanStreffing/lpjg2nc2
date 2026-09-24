@@ -24,6 +24,7 @@ setup(
         "Issues": "https://github.com/JanStreffing/lpjg2nc2/issues",
     },
     packages=find_packages(),
+    package_data={"lpjg2nc": ["output_metadata.json"]},
     python_requires=">=3.8",
     install_requires=[
         "numpy>=1.20.0",

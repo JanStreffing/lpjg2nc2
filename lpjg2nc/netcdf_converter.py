@@ -17,6 +17,7 @@ from collections import defaultdict
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from lpjg2nc.grid_utils import match_coordinates_to_grid, compute_cell_bounds
+from lpjg2nc.metadata import add_variable_metadata
 
 try:
     import cftime
@@ -348,10 +349,10 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         coord_col_names = ['Lon', 'Lat', 'Year', 'Day', 'Month', 'Mth']
         var_columns = [c for c in var_columns if c not in coord_col_names]
         
-        # For daily files with generic column names like "Total", use filename for variable name
-        if has_day and len(var_columns) == 1 and var_columns[0] in ['Total', 'Value', 'total', 'value']:
+        # For files with a single generic column like "Total", use filename for variable name
+        if len(var_columns) == 1 and var_columns[0] in ['Total', 'Value', 'total', 'value']:
             base_filename = os.path.basename(file_paths[0])
-            # Extract variable name: lai_daily_1350.out -> lai
+            # Extract variable name: lai_daily_1350.out -> lai, baresoilFrac_yearly.out -> baresoilFrac
             var_name = os.path.splitext(base_filename)[0].split('_')[0]
             # Create mapping from original column to new name
             original_col = var_columns[0]
@@ -1053,7 +1054,8 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     for var_name in var_columns:
         if var_name in ds:
             ds[var_name].attrs['long_name'] = var_name
-            ds[var_name].attrs['units'] = 'unknown'  # Could be updated with a metadata lookup
+            ds[var_name].attrs['units'] = 'unknown'
+    add_variable_metadata(ds, var_columns, file_paths[0])
     
     # Add proper time coordinate attributes for CDO compatibility
     # Create an explicit time variable with correct attributes for CDO
@@ -1270,6 +1272,8 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     ds['lon'].attrs['standard_name'] = 'longitude'
     ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
+
+    add_variable_metadata(ds, processed_vars, file_paths[0])
 
     ds['time'].attrs['standard_name'] = 'time'
     ds['time'].attrs['long_name'] = 'time'
@@ -1608,6 +1612,7 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
     ds['lon'].attrs['long_name'] = 'longitude of grid points'
     ds['lon'].attrs['units'] = 'degrees_east'
     ds[var_name].attrs['long_name'] = var_name
+    add_variable_metadata(ds, [var_name], file_paths[0])
 
     # Add cell bounds when we have real reduced-Gaussian grid geometry to
     # compute them from (grids.nc); see process_2d_file for why.
