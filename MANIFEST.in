@@ -1,5 +1,6 @@
 include README.md
 include license
+include lpjg2nc/output_metadata.json
 recursive-include docs *
 recursive-exclude docs/build *
 recursive-exclude * __pycache__
