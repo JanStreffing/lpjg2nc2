@@ -1,0 +1,1613 @@
+{
+ "aaet": {
+  "long_name": "Annual AET"
+ },
+ "aaet_forest": {
+  "long_name": "Annual managed forest AET"
+ },
+ "aaet_natural": {
+  "long_name": "Annual natural vegetation AET"
+ },
+ "aburned_area_out": {
+  "long_name": "BLAZE burned area"
+ },
+ "agestruct_dens_forest": {
+  "long_name": "Age structure (tree density)"
+ },
+ "agestruct_dens_natural": {
+  "long_name": "Age structure (tree density)"
+ },
+ "agestruct_forest": {
+  "long_name": "Age structure (tree density)"
+ },
+ "agestruct_natural": {
+  "long_name": "Age structure (tree density)"
+ },
+ "agpp": {
+  "long_name": "Annual GPP"
+ },
+ "aiso": {
+  "long_name": "annual isoprene flux"
+ },
+ "amon": {
+  "long_name": "annual monoterpene flux"
+ },
+ "amon_mt1": {
+  "long_name": "annual endocyclic monoterpene flux"
+ },
+ "amon_mt2": {
+  "long_name": "annual other monoterpene flux"
+ },
+ "annual_burned_area": {
+  "long_name": "BLAZE burned area"
+ },
+ "anpp": {
+  "long_name": "Annual NPP"
+ },
+ "anpp_cropland": {
+  "long_name": "Annual cropland NPP"
+ },
+ "anpp_forest": {
+  "long_name": "Annual managed forest NPP"
+ },
+ "anpp_landscape": {
+  "long_name": "Annual NPP"
+ },
+ "anpp_landscape_cropland": {
+  "long_name": "Annual cropland NPP"
+ },
+ "anpp_landscape_forest": {
+  "long_name": "Annual managed forest NPP"
+ },
+ "anpp_landscape_natural": {
+  "long_name": "Annual natural vegetation NPP"
+ },
+ "anpp_landscape_pasture": {
+  "long_name": "Annual pasture NPP"
+ },
+ "anpp_landscape_peatland": {
+  "long_name": "Annual peatland NPP"
+ },
+ "anpp_natural": {
+  "long_name": "Annual natural vegetation NPP"
+ },
+ "anpp_pasture": {
+  "long_name": "Annual pasture NPP"
+ },
+ "anpp_peatland": {
+  "long_name": "Annual peatland NPP"
+ },
+ "anpp_sts": {
+  "long_name": "stand type anpp"
+ },
+ "baresoilFracPhen_monthly": {
+  "long_name": "Bare soil fraction, phenology/LAI-weighted complement",
+  "units": "%"
+ },
+ "baresoilFrac_monthly": {
+  "long_name": "Gridcell fraction covered by bare soil",
+  "units": "-"
+ },
+ "baresoilFrac_yearly": {
+  "long_name": "Gridcell fraction covered by bare soils",
+  "units": "-"
+ },
+ "burntFractionAll_monthly": {
+  "long_name": "Percentage of grid cell burned due to all fires including natural (should also include anthropogenic fires and those associated with anthropogenic Land-use change but doesn't)",
+  "units": "-"
+ },
+ "burntFractionAll_yearly": {
+  "long_name": "Percentage of grid cell burned due to all fires including natural (should also include anthropogenic fires and those associated with anthropogenic Land-use change but doesn't)",
+  "units": "-"
+ },
+ "c3PftFrac_monthly": {
+  "long_name": "Fraction of C3 Plants",
+  "units": "%"
+ },
+ "c4PftFrac_monthly": {
+  "long_name": "Fraction of C4 Plants",
+  "units": "%"
+ },
+ "cFluxYr_yearly": {
+  "long_name": "Yearly flux to the atmosphere",
+  "units": "kg C m-2"
+ },
+ "cLand1st_monthly": {
+  "long_name": "Carbon on Land on 1st day of month",
+  "units": "kg C m-2"
+ },
+ "cLandYr_yearly": {
+  "long_name": "Carbon on Land",
+  "units": "kg C m-2"
+ },
+ "cLand_monthly": {
+  "long_name": "Carbon on Land",
+  "units": "kg C m-2"
+ },
+ "cLand_yearly": {
+  "long_name": "Carbon on Land",
+  "units": "kg C m-2"
+ },
+ "cLeaf_monthly": {
+  "long_name": "Carbon in leaf",
+  "units": "kg C m-2"
+ },
+ "cLitterCwd_monthly": {
+  "long_name": "Carbon in Cwd litter",
+  "units": "kg C m-2"
+ },
+ "cLitterLut_yearly": {
+  "long_name": "Carbon in Above and Below Ground Litter Pools on Land Use Tiles",
+  "units": "kg m-2"
+ },
+ "cLitterSubSurf_monthly": {
+  "long_name": "Carbon in sub surface litter",
+  "units": "kg C m-2"
+ },
+ "cLitterSurf_monthly": {
+  "long_name": "Carbon in surface litter",
+  "units": "kg C m-2"
+ },
+ "cLitter_monthly": {
+  "long_name": "Carbon in litter",
+  "units": "kg C m-2"
+ },
+ "cLitter_yearly": {
+  "long_name": "Carbon in Above and Below Ground Litter Pools",
+  "units": "kg C m-2"
+ },
+ "cOther_monthly": {
+  "long_name": "Carbon in other organs",
+  "units": "kg C m-2"
+ },
+ "cProductLut_yearly": {
+  "long_name": "Wood and agricultural product pool carbon associated with land use tiles; examples of products include paper, cardboard, timber for construction, and crop harvest for food or fuel.",
+  "units": "kg m-2"
+ },
+ "cProduct_monthly": {
+  "long_name": "Wood and agricultural product pool carbon",
+  "units": "kg C m-2"
+ },
+ "cProduct_yearly": {
+  "long_name": "Wood and agricultural product pool carbon",
+  "units": "kg C m-2"
+ },
+ "cRoot_monthly": {
+  "long_name": "Carbon in root",
+  "units": "kg C m-2"
+ },
+ "cSoilFast_monthly": {
+  "long_name": "Carbon Mass in Fast Soil Pool",
+  "units": "kg C m-2"
+ },
+ "cSoilLut_yearly": {
+  "long_name": "Carbon in soil pool on land use tiles",
+  "units": "kg m-2"
+ },
+ "cSoilMedium_monthly": {
+  "long_name": "Carbon Mass in Medium Soil Pool",
+  "units": "kg C m-2"
+ },
+ "cSoilPools_monthly": {
+  "long_name": "Carbon in each soil pool",
+  "units": "kg C m-2"
+ },
+ "cSoilSlow_monthly": {
+  "long_name": "Carbon Mass in Slow Soil Pool",
+  "units": "kg C m-2"
+ },
+ "cSoil_monthly": {
+  "long_name": "Carbon in soil",
+  "units": "kg C m-2"
+ },
+ "cSoil_yearly": {
+  "long_name": "Carbon in soil pool",
+  "units": "kg C m-2"
+ },
+ "cStem_monthly": {
+  "long_name": "Carbon in stem",
+  "units": "kg C m-2"
+ },
+ "cTotFireLut_monthly": {
+  "long_name": "Carbon loss from natural and managed fire on land use tile, including deforestation fires",
+  "units": "kg m-2 s-1"
+ },
+ "cVegGrass_monthly": {
+  "long_name": "Carbon in Grass Vegetation",
+  "units": "kg m-2"
+ },
+ "cVegLut_yearly": {
+  "long_name": "Carbon in vegetation on land use tiles",
+  "units": "kg m-2"
+ },
+ "cVegShrub_monthly": {
+  "long_name": "Carbon in Shrub Vegetation",
+  "units": "kg m-2"
+ },
+ "cVegTree_monthly": {
+  "long_name": "Carbon in Tree Vegetation",
+  "units": "kg m-2"
+ },
+ "cVeg_monthly": {
+  "long_name": "Carbon in vegetation",
+  "units": "kg C m-2"
+ },
+ "cVeg_yearly": {
+  "long_name": "Carbon in vegetation",
+  "units": "kg C m-2"
+ },
+ "cflux": {
+  "long_name": "C fluxes"
+ },
+ "cflux_cropland": {
+  "long_name": "C fluxes"
+ },
+ "cflux_forest": {
+  "long_name": "C fluxes"
+ },
+ "cflux_forestry": {
+  "long_name": "C fluxes per gridcell area"
+ },
+ "cflux_natural": {
+  "long_name": "C fluxes"
+ },
+ "cflux_pasture": {
+  "long_name": "C fluxes"
+ },
+ "cflux_peatland": {
+  "long_name": "C fluxes"
+ },
+ "cflux_primary": {
+  "long_name": "C fluxes per gridcell area"
+ },
+ "cflux_regrowth": {
+  "long_name": "C fluxes per gridcell area"
+ },
+ "clitter": {
+  "long_name": "Litter C"
+ },
+ "clitter_sts": {
+  "long_name": "stand type litter"
+ },
+ "cmass": {
+  "long_name": "C biomass"
+ },
+ "cmass_cropland": {
+  "long_name": "Annual cropland cmass"
+ },
+ "cmass_forest": {
+  "long_name": "Annual managed forest cmass"
+ },
+ "cmass_harv_killed_sts": {
+  "long_name": "stand type whole tree harvest cmass"
+ },
+ "cmass_landscape": {
+  "long_name": "C biomass"
+ },
+ "cmass_landscape_cropland": {
+  "long_name": "Annual cropland cmass"
+ },
+ "cmass_landscape_forest": {
+  "long_name": "Annual managed forest cmass"
+ },
+ "cmass_landscape_natural": {
+  "long_name": "Annual natural vegetation cmass"
+ },
+ "cmass_landscape_pasture": {
+  "long_name": "Annual pasture cmass"
+ },
+ "cmass_landscape_peatland": {
+  "long_name": "Annual peatland cmass"
+ },
+ "cmass_natural": {
+  "long_name": "Annual natural vegetation cmass"
+ },
+ "cmass_pasture": {
+  "long_name": "Annual pasture cmass"
+ },
+ "cmass_peatland": {
+  "long_name": "Annual peatland cmass"
+ },
+ "cmass_sts": {
+  "long_name": "stand type cmass"
+ },
+ "cmass_tree_mort_sts": {
+  "long_name": "stand type cmass of trees killed by mortality"
+ },
+ "cmass_tree_sts": {
+  "long_name": "stand type tree cmass"
+ },
+ "cmass_wood_clearcut_sts": {
+  "long_name": "stand type clearcut wood harvest cmass"
+ },
+ "cmass_wood_harv_sts": {
+  "long_name": "stand type wood harvest cmass"
+ },
+ "cmass_wood_harv_toprod_sts": {
+  "long_name": "stand type wood harvest product cmass"
+ },
+ "cmass_wood_sts": {
+  "long_name": "stand type wood cmass"
+ },
+ "cmass_wood_thin_sts": {
+  "long_name": "stand type thinning wood harvest cmass"
+ },
+ "cnc_monthly": {
+  "long_name": "Canopy Covered Area Percentage",
+  "units": "%"
+ },
+ "cpool": {
+  "long_name": "Soil C"
+ },
+ "cpool_cropland": {
+  "long_name": "Soil C"
+ },
+ "cpool_forest": {
+  "long_name": "Soil C"
+ },
+ "cpool_forestry": {
+  "long_name": "C pool per gridcell area"
+ },
+ "cpool_natural": {
+  "long_name": "Soil C"
+ },
+ "cpool_pasture": {
+  "long_name": "Soil C"
+ },
+ "cpool_peatland": {
+  "long_name": "Soil C"
+ },
+ "cpool_primary": {
+  "long_name": "C pool per gridcell area"
+ },
+ "cpool_regrowth": {
+  "long_name": "C pool per gridcell area"
+ },
+ "cropFracC3Phen_monthly": {
+  "long_name": "C3 crop fraction, phenology-weighted",
+  "units": "%"
+ },
+ "cropFracC3_monthly": {
+  "long_name": "C3 Crop Area Percentage",
+  "units": "%"
+ },
+ "cropFracC3_yearly": {
+  "long_name": "Gridcell fraction covered by C3 crops (stand-area)",
+  "units": "%"
+ },
+ "cropFracC4Phen_monthly": {
+  "long_name": "C4 crop fraction, phenology-weighted",
+  "units": "%"
+ },
+ "cropFracC4_monthly": {
+  "long_name": "C4 Crop Area Percentage",
+  "units": "%"
+ },
+ "cropFracC4_yearly": {
+  "long_name": "Gridcell fraction covered by C4 crops (stand-area)",
+  "units": "%"
+ },
+ "cropFracPhen_monthly": {
+  "long_name": "Crop fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "cropFrac_monthly": {
+  "long_name": "Gridcell fraction covered by crop",
+  "units": "-"
+ },
+ "cropFrac_yearly": {
+  "long_name": "Gridcell fraction covered by crops",
+  "units": "-"
+ },
+ "csink_sts": {
+  "long_name": "stand type carbon sink"
+ },
+ "csoil_sts": {
+  "long_name": "stand type soil"
+ },
+ "cton_leaf": {
+  "long_name": "Mean leaf C:N"
+ },
+ "cutinterval_sts": {
+  "long_name": "Mean latest cutting interval (patch age at year of clearcut)"
+ },
+ "cutinterval_thisyear_sts": {
+  "long_name": "Mean stand type cut interval this year"
+ },
+ "daily_ds": {
+  "long_name": "Daily DS"
+ },
+ "daily_fphu": {
+  "long_name": "Daily DS"
+ },
+ "daily_leaf": {
+  "long_name": "Daily leaf allocation"
+ },
+ "daily_root": {
+  "long_name": "Daily root allocation"
+ },
+ "daily_stem": {
+  "long_name": "Daily stem allocation"
+ },
+ "daily_storage": {
+  "long_name": "Daily storage allocation"
+ },
+ "dens": {
+  "long_name": "Tree density"
+ },
+ "dens_forest": {
+  "long_name": "Managed forest tree density"
+ },
+ "dens_natural": {
+  "long_name": "Natural vegetation tree density"
+ },
+ "dens_sts": {
+  "long_name": "stand type tree density"
+ },
+ "diam": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "diam_forest": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "diam_g_sts": {
+  "long_name": "stand type tree quadratic mean diameter"
+ },
+ "diam_natural": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "diamstruct_cmass_forest": {
+  "long_name": "Diameter structure (cmass_wood_potharv)"
+ },
+ "diamstruct_cmass_natural": {
+  "long_name": "Diameter structure (cmass_wood_potharv)"
+ },
+ "diamstruct_dens_forest": {
+  "long_name": "Diameter structure (tree density)"
+ },
+ "diamstruct_dens_natural": {
+  "long_name": "Diameter structure (tree density)"
+ },
+ "diamstruct_forest": {
+  "long_name": "Diameter structure (tree density)"
+ },
+ "diamstruct_natural": {
+  "long_name": "Diameter structure (tree density)"
+ },
+ "doc": {
+  "long_name": "DOC"
+ },
+ "ec_daily": {
+  "long_name": "Total interception evaporation from Canopy",
+  "units": "kg m-2 s-1"
+ },
+ "est_limits": {
+  "long_name": "Establishment limits"
+ },
+ "evspsbl_daily": {
+  "long_name": "Total Evapotranspiration",
+  "units": "kg m-2 s-1"
+ },
+ "evspsbl_monthly": {
+  "long_name": "Total Evapotranspiration",
+  "units": "kg m-2 s-1"
+ },
+ "evspsblpot_daily": {
+  "long_name": "Potential Evapotranspiration",
+  "units": "kg m-2 s-1"
+ },
+ "evspsblpot_monthly": {
+  "long_name": "Potential Evapotranspiration",
+  "units": "kg m-2 s-1"
+ },
+ "evspsblsoi_monthly": {
+  "long_name": "Water Evaporation from Soil",
+  "units": "kg m-2 s-1"
+ },
+ "evspsblveg_monthly": {
+  "long_name": "Total evaporation from Canopy",
+  "units": "kg m-2 s-1"
+ },
+ "fAnthDisturb_monthly": {
+  "long_name": "CO2 Flux to Atmosphere from anthropogenic disturbance",
+  "units": "kg C m-2 s-1"
+ },
+ "fBNF_monthly": {
+  "long_name": "Biological nitrogen fixation",
+  "units": "kg N m-2 s-1"
+ },
+ "fCLandToOcean_monthly": {
+  "long_name": "Organic carbon leaching",
+  "units": "kg C m-2 s-1"
+ },
+ "fDeforestToAtmos_monthly": {
+  "long_name": "Deforested biomass that goes into atmosphere as a result of anthropogenic land use change",
+  "units": "kg C m-2 s-1"
+ },
+ "fDeforestToProduct_monthly": {
+  "long_name": "Deforested biomass that goes into product pool as a result of anthropogenic land use change",
+  "units": "kg C m-2 s-1"
+ },
+ "fFireAll_monthly": {
+  "long_name": "CO2 Emission from all Fire",
+  "units": "kg C m-2 s-1"
+ },
+ "fFireNat_monthly": {
+  "long_name": "CO2 Emission from natural Fire",
+  "units": "kg C m-2 s-1"
+ },
+ "fFire_monthly": {
+  "long_name": "CO2 Emission from natural Fire",
+  "units": "kg C m-2 s-1"
+ },
+ "fHarvestToAtmos_monthly": {
+  "long_name": "All harvested biomass that goes straight into atmosphere as CO2",
+  "units": "kg C m-2 s-1"
+ },
+ "fHarvestToProduct_monthly": {
+  "long_name": "All harvested biomass that goes into product pool",
+  "units": "kg C m-2 s-1"
+ },
+ "fLitterFire_monthly": {
+  "long_name": "CO2 Emission from natural litter Fire",
+  "units": "kg C m-2 s-1"
+ },
+ "fLitterSoil_monthly": {
+  "long_name": "Total Carbon Flux from Litter to Soil",
+  "units": "kg C m-2 s-1"
+ },
+ "fLuc_monthly": {
+  "long_name": "CO2 Flux to Atmosphere from land use change",
+  "units": "kg C m-2 s-1"
+ },
+ "fLulccAtmLut_monthly": {
+  "long_name": "Carbon transferred directly to atmosphere due to any land-use or land-cover change activities including deforestation or agricultural fire",
+  "units": "kg m-2 s-1"
+ },
+ "fN2O_monthly": {
+  "long_name": "Total land N2O flux",
+  "units": "kg N m-2 s-1"
+ },
+ "fNAnthDisturb_monthly": {
+  "long_name": "Nitrogen Flux to Atmosphere from anthropogenic disturbance",
+  "units": "kg N m-2 s-1"
+ },
+ "fNLandToOcean_monthly": {
+  "long_name": "Organic and mineral nitrogen leaching",
+  "units": "kg C m-2 s-1"
+ },
+ "fNLitterSoil_monthly": {
+  "long_name": "Total Nitrogen Flux from Litter to Soil",
+  "units": "kg N m-2 s-1"
+ },
+ "fNOx_monthly": {
+  "long_name": "Total land NOx flux",
+  "units": "kg N m-2 s-1"
+ },
+ "fNProduct_monthly": {
+  "long_name": "Nitrogen Flux to Products from Vegetation",
+  "units": "kg N m-2 s-1"
+ },
+ "fNVegLitter_monthly": {
+  "long_name": "Total nitrogen Flux from Vegetation to Litter",
+  "units": "kg C m-2 s-1"
+ },
+ "fNdep_monthly": {
+  "long_name": "Nitrogen deposition",
+  "units": "kg N m-2 s-1"
+ },
+ "fNfert_monthly": {
+  "long_name": "Total nitrogen fertilisation to the ecosystem",
+  "units": "kg N m-2 s-1"
+ },
+ "fNgasFire_monthly": {
+  "long_name": "Nitrogen fire gas flux",
+  "units": "kg N m-2 s-1"
+ },
+ "fNgasNonFire_monthly": {
+  "long_name": "Nitrogen non fire gas flux",
+  "units": "kg N m-2 s-1"
+ },
+ "fNgas_monthly": {
+  "long_name": "Nitrogen gas flux",
+  "units": "kg N m-2 s-1"
+ },
+ "fNleach_monthly": {
+  "long_name": "Nitrogen leached",
+  "units": "kg N m-2 s-1"
+ },
+ "fNloss_monthly": {
+  "long_name": "Total nitrogen loss from the ecosystem",
+  "units": "kg N m-2 s-1"
+ },
+ "fNnetmin_monthly": {
+  "long_name": "Net Nitrogen Mineralisation",
+  "units": "kg N m-2 s-1"
+ },
+ "fNup_monthly": {
+  "long_name": "Plant nitrogen uptake",
+  "units": "kg N m-2 s-1"
+ },
+ "fProductDecompLut_monthly": {
+  "long_name": "Flux from wood and agricultural product pools on land use tile into atmosphere",
+  "units": "kg m-2 s-1"
+ },
+ "fProductDecomp_monthly": {
+  "long_name": "Carbon Flux to Athmosphere from Products",
+  "units": "kg C m-2 s-1"
+ },
+ "fVegFire_monthly": {
+  "long_name": "CO2 Emission from natural vegetation Fire",
+  "units": "kg C m-2 s-1"
+ },
+ "fVegLitterMortality_monthly": {
+  "long_name": "Carbon Flux from Vegetation to Litter due to Mortality",
+  "units": "kg C m-2 s-1"
+ },
+ "fVegLitterSenescence_monthly": {
+  "long_name": "Carbon Flux from Vegetation to Litter due to Senescence",
+  "units": "kg C m-2 s-1"
+ },
+ "fVegLitter_monthly": {
+  "long_name": "Total Carbon Flux from Vegetation to Litter",
+  "units": "kg C m-2 s-1"
+ },
+ "fVegOther_monthly": {
+  "long_name": "Total Carbon Flux from Vegetation to Other",
+  "units": "kg C m-2 s-1"
+ },
+ "fco2antt_monthly": {
+  "long_name": "Carbon Mass Flux into Atmosphere Due to All Anthropogenic Emissions of CO2",
+  "units": "kg C m-2 s-1"
+ },
+ "fco2nat_monthly": {
+  "long_name": "Surface Carbon Mass Flux into the Atmosphere Due to Natural Sources",
+  "units": "kg C m-2 s-1"
+ },
+ "fhi": {
+  "long_name": "Crop attained fraction of harvest index"
+ },
+ "firert": {
+  "long_name": "Fire retrun time"
+ },
+ "forest_cflux_veg": {
+  "long_name": "Forest C fluxes to and from vegetation"
+ },
+ "forest_cmass_harv_killed": {
+  "long_name": "Killed forest C biomass during wood harvest"
+ },
+ "forest_harvest": {
+  "long_name": "Forest harvest"
+ },
+ "forest_vegc": {
+  "long_name": "Forest vegetation"
+ },
+ "fpc": {
+  "long_name": "FPC"
+ },
+ "fpc_forest": {
+  "long_name": "Annual managed forest FPC"
+ },
+ "fpc_natural": {
+  "long_name": "Annual natural vegetation FPC"
+ },
+ "fphu": {
+  "long_name": "Crop attained fraction of potential heat units"
+ },
+ "fracInLut_yearly": {
+  "long_name": "Gross fraction that was transferred into this tile from other land use tiles",
+  "units": "%"
+ },
+ "fracLut_monthly": {
+  "long_name": "Fraction of grid cell for each land use tile",
+  "units": "%"
+ },
+ "fracLut_yearly": {
+  "long_name": "Fraction of grid cell for each land use tile",
+  "units": "%"
+ },
+ "fracOutLut_yearly": {
+  "long_name": "Gross fraction of land use tile  that was transferred into other land use tiles",
+  "units": "%"
+ },
+ "gppGrass_monthly": {
+  "long_name": "Gross Primary Production on grass tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "gppLut_monthly": {
+  "long_name": "Gross primary productivity on land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "gppShrub_monthly": {
+  "long_name": "Gross Primary Production on Shrub Tiles",
+  "units": "kg m-2 s-1"
+ },
+ "gppTree_monthly": {
+  "long_name": "Gross Primary Production on tree tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "gpp_monthly": {
+  "long_name": "Gross Primary Production",
+  "units": "kg C m-2 s-1"
+ },
+ "grassFracC3Phen_monthly": {
+  "long_name": "C3 grass fraction, phenology-weighted",
+  "units": "%"
+ },
+ "grassFracC3_monthly": {
+  "long_name": "C3 Grass Area Percentage",
+  "units": "%"
+ },
+ "grassFracC3_yearly": {
+  "long_name": "Gridcell fraction covered by C3 natural grass (stand-area)",
+  "units": "%"
+ },
+ "grassFracC4Phen_monthly": {
+  "long_name": "C4 grass fraction, phenology-weighted",
+  "units": "%"
+ },
+ "grassFracC4_monthly": {
+  "long_name": "C4 Grass Area Percentage",
+  "units": "%"
+ },
+ "grassFracC4_yearly": {
+  "long_name": "Gridcell fraction covered by C4 natural grass (stand-area)",
+  "units": "%"
+ },
+ "grassFracPhen_monthly": {
+  "long_name": "Grass fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "grassFrac_monthly": {
+  "long_name": "Gridcell fraction covered by grass",
+  "units": "-"
+ },
+ "grassFrac_yearly": {
+  "long_name": "Gridcell fraction covered by grass",
+  "units": "-"
+ },
+ "harvest_flux_luc": {
+  "long_name": "Harvest for simulations with wood harvest modelled as luc, using eg. LUH2 input"
+ },
+ "hdate1": {
+  "long_name": "Crop first harvest date"
+ },
+ "hdate2": {
+  "long_name": "Crop second harvest date"
+ },
+ "height": {
+  "long_name": "Mean species heights"
+ },
+ "height_forest": {
+  "long_name": "Mean species height (m)"
+ },
+ "height_natural": {
+  "long_name": "Mean species height (m)"
+ },
+ "height_sts": {
+  "long_name": "stand type height"
+ },
+ "ifs_input": {
+  "long_name": "IFS input"
+ },
+ "ifs_mco2": {
+  "long_name": "IFS monthly average CO2"
+ },
+ "ifs_output": {
+  "long_name": "LPJ-GUESS to IFS coupling"
+ },
+ "irrLut_monthly": {
+  "long_name": "Irrigation flux including any irrigation for crops, trees, pasture, or urban lawns",
+  "units": "kg m-2 s-1"
+ },
+ "irrigation": {
+  "long_name": "Crop irrigation"
+ },
+ "lai": {
+  "long_name": "LAI"
+ },
+ "laiLut_monthly": {
+  "long_name": "Leaf Area Index on Land Use Tile",
+  "units": ""
+ },
+ "lai_daily": {
+  "long_name": "Leaf Area Index",
+  "units": "m2 m-2"
+ },
+ "lai_forest": {
+  "long_name": "Annual managed forest LAI"
+ },
+ "lai_landscape": {
+  "long_name": "Annual NPP"
+ },
+ "lai_landscape_cropland": {
+  "long_name": "Annual cropland LAI"
+ },
+ "lai_landscape_forest": {
+  "long_name": "Annual managed forest LAI"
+ },
+ "lai_landscape_natural": {
+  "long_name": "Annual natural vegetation LAI"
+ },
+ "lai_landscape_pasture": {
+  "long_name": "Annual pasture LAI"
+ },
+ "lai_landscape_peatland": {
+  "long_name": "Annual peatland LAI"
+ },
+ "lai_monthly": {
+  "long_name": "Leaf Area Index",
+  "units": "m2 m-2"
+ },
+ "lai_natural": {
+  "long_name": "Annual natural vegetation LAI"
+ },
+ "lai_sts": {
+  "long_name": "stand type lai"
+ },
+ "lai_tree_sts": {
+  "long_name": "stand type tree lai"
+ },
+ "landCoverFrac_monthly": {
+  "long_name": "Fractional Land Cover of PFT"
+ },
+ "lgp": {
+  "long_name": "Crop length of growing period"
+ },
+ "maet": {
+  "long_name": "Monthly AET"
+ },
+ "mald": {
+  "long_name": "Monthly active layer depth"
+ },
+ "mburned_area_out": {
+  "long_name": "BLAZE monthly burned area"
+ },
+ "mch4": {
+  "long_name": "Monthly CH4 emissions, total"
+ },
+ "mch4_diffusion": {
+  "long_name": "Monthly CH4 emissions, diffusion"
+ },
+ "mch4_ebullition": {
+  "long_name": "Monthly CH4 emissions, ebullition"
+ },
+ "mch4_monthly": {
+  "long_name": "Monthly CH4 emissions, total"
+ },
+ "mch4_plant": {
+  "long_name": "Monthly CH4 emissions, plant-mediated"
+ },
+ "mch4diff": {
+  "long_name": "Monthly CH4 emissions, diffusion"
+ },
+ "mch4ebull": {
+  "long_name": "Monthly CH4 emissions, ebullition"
+ },
+ "mch4plan": {
+  "long_name": "Monthly CH4 emissions, plant-mediated"
+ },
+ "mevap": {
+  "long_name": "Monthly Evap"
+ },
+ "mgpp": {
+  "long_name": "Monthly GPP-LeafResp"
+ },
+ "mintercep": {
+  "long_name": "Monthly intercep"
+ },
+ "miso": {
+  "long_name": "monthly isoprene flux"
+ },
+ "mlai": {
+  "long_name": "Monthly LAI"
+ },
+ "mmon": {
+  "long_name": "monthly monoterpene flux"
+ },
+ "mmon_mt1": {
+  "long_name": "monthly endocyclic monoterpene flux"
+ },
+ "mmon_mt2": {
+  "long_name": "monthly other monoterpene flux"
+ },
+ "mnee": {
+  "long_name": "Monthly NEE"
+ },
+ "mnpp": {
+  "long_name": "Monthly NPP"
+ },
+ "monthly_burned_area": {
+  "long_name": "BLAZE monthly burned area"
+ },
+ "mpet": {
+  "long_name": "Monthly PET"
+ },
+ "mra": {
+  "long_name": "Monthly autotrophic respiration"
+ },
+ "mrfso_monthly": {
+  "long_name": "Soil Frozen Water Content",
+  "units": "kg m-2"
+ },
+ "mrh": {
+  "long_name": "Monthly heterotrophic respiration"
+ },
+ "mrroLut_monthly": {
+  "long_name": "Total runoff from land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "mrro_daily": {
+  "long_name": "Total runoff",
+  "units": "Kg m-2"
+ },
+ "mrro_monthly": {
+  "long_name": "Total Runoff",
+  "units": "kg m-2 s-1"
+ },
+ "mrros_monthly": {
+  "long_name": "Total Surface Runoff",
+  "units": "kg m-2 s-1"
+ },
+ "mrsll_daily": {
+  "long_name": "Total liquid water content of soil layer",
+  "units": "kg m-2"
+ },
+ "mrsll_monthly": {
+  "long_name": "Total liquid water content of soil layer",
+  "units": "kg m-2"
+ },
+ "mrsoLut_monthly": {
+  "long_name": "Total soil moisture of land use tile",
+  "units": "kg m-2"
+ },
+ "mrso_daily": {
+  "long_name": "Total water content of soil",
+  "units": "Kg m-2"
+ },
+ "mrso_monthly": {
+  "long_name": "Soil Water Content",
+  "units": "kg m-2"
+ },
+ "mrsol_daily": {
+  "long_name": "Total water content of soil layer",
+  "units": "Kg m-2"
+ },
+ "mrsol_monthly": {
+  "long_name": "Total water content of soil layer",
+  "units": "kg m-2"
+ },
+ "mrsosLut_monthly": {
+  "long_name": "Moisture in Upper Portion of Soil Column of land use tile",
+  "units": "kg m-2"
+ },
+ "mrsos_daily": {
+  "long_name": "Total water content of upper soil portion",
+  "units": "Kg m-2"
+ },
+ "mrsos_monthly": {
+  "long_name": "Moisture in Upper Portion of Soil Column",
+  "units": "kg m-2"
+ },
+ "mrunoff": {
+  "long_name": "Monthly runoff"
+ },
+ "msnow": {
+  "long_name": "Monthly snow depth"
+ },
+ "msnowdepth": {
+  "long_name": "Monthly snow depth"
+ },
+ "msoiltempdepth105": {
+  "long_name": "Soil temperature (105cm depth)"
+ },
+ "msoiltempdepth115": {
+  "long_name": "Soil temperature (115cm depth)"
+ },
+ "msoiltempdepth125": {
+  "long_name": "Soil temperature (125cm depth)"
+ },
+ "msoiltempdepth135": {
+  "long_name": "Soil temperature (135cm depth)"
+ },
+ "msoiltempdepth145": {
+  "long_name": "Soil temperature (145cm depth)"
+ },
+ "msoiltempdepth15": {
+  "long_name": "Soil temperature (15cm depth)"
+ },
+ "msoiltempdepth25": {
+  "long_name": "Soil temperature (25cm depth)"
+ },
+ "msoiltempdepth35": {
+  "long_name": "Soil temperature (35cm depth)"
+ },
+ "msoiltempdepth45": {
+  "long_name": "Soil temperature (45cm depth)"
+ },
+ "msoiltempdepth5": {
+  "long_name": "Soil temperature (5cm depth)"
+ },
+ "msoiltempdepth55": {
+  "long_name": "Soil temperature (55cm depth)"
+ },
+ "msoiltempdepth65": {
+  "long_name": "Soil temperature (65cm depth)"
+ },
+ "msoiltempdepth75": {
+  "long_name": "Soil temperature (75cm depth)"
+ },
+ "msoiltempdepth85": {
+  "long_name": "Soil temperature (85cm depth)"
+ },
+ "msoiltempdepth95": {
+  "long_name": "Soil temperature (95cm depth)"
+ },
+ "mwcont_lower": {
+  "long_name": "Monthly wcont_lower"
+ },
+ "mwcont_upper": {
+  "long_name": "Monthly wcont_upper"
+ },
+ "mwtp": {
+  "long_name": "Monthly water table depth"
+ },
+ "nLand_monthly": {
+  "long_name": "Nitrogen on Land",
+  "units": "kg N m-2"
+ },
+ "nLeaf_monthly": {
+  "long_name": "Nitrogen in leaf",
+  "units": "kg N m-2"
+ },
+ "nLitterCwd_monthly": {
+  "long_name": "Nitrogen in Cwd litter",
+  "units": "kg N m-2"
+ },
+ "nLitterSubSurf_monthly": {
+  "long_name": "Nitrogen in sub surface litter",
+  "units": "kg N m-2"
+ },
+ "nLitterSurf_monthly": {
+  "long_name": "Nitrogen in surface litter",
+  "units": "kg N m-2"
+ },
+ "nLitter_monthly": {
+  "long_name": "Nitrogen in litter",
+  "units": "kg N m-2"
+ },
+ "nMineralNH4_monthly": {
+  "long_name": "Total mineral NH4 in soil",
+  "units": "kg N m-2"
+ },
+ "nMineralNO3_monthly": {
+  "long_name": "Total mineral NO3 in soil",
+  "units": "kg N m-2"
+ },
+ "nMineral_monthly": {
+  "long_name": "Total mineral N in soil",
+  "units": "kg N m-2"
+ },
+ "nOther_monthly": {
+  "long_name": "Nitrogen in other organs",
+  "units": "kg N m-2"
+ },
+ "nProduct_monthly": {
+  "long_name": "Nitrogen in products",
+  "units": "kg N m-2"
+ },
+ "nRoot_monthly": {
+  "long_name": "Nitrogen in root",
+  "units": "kg N m-2"
+ },
+ "nSoil_monthly": {
+  "long_name": "Nitrogen in soil",
+  "units": "kg N m-2"
+ },
+ "nStem_monthly": {
+  "long_name": "Nitrogen in stem",
+  "units": "kg N m-2"
+ },
+ "nVeg_monthly": {
+  "long_name": "Nitrogen in vegetation",
+  "units": "kg N m-2"
+ },
+ "nbpLut_monthly": {
+  "long_name": "Carbon Mass Flux out of Atmosphere due to Net Biospheric Production on Land Use Tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "nbp_monthly": {
+  "long_name": "Carbon Mass Flux out of Atmosphere due to Net Biospheric Production on Land",
+  "units": "kg C m-2 s-1"
+ },
+ "necbLut_monthly": {
+  "long_name": "Net rate of C accumulation (or loss) on land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "nep_monthly": {
+  "long_name": "Carbon Mass Flux out of Atmosphere due to Net Biospheric Production on Land excluding fire from LU",
+  "units": "kg C m-2 s-1"
+ },
+ "netAtmosLandCO2Flux_monthly": {
+  "long_name": "Carbon Mass Flux out of Atmosphere due to Net Biospheric Production on Land",
+  "units": "kg C m-2 s-1"
+ },
+ "nflux": {
+  "long_name": "Annual nitrogen fluxes"
+ },
+ "nflux_cropland": {
+  "long_name": "N fluxes"
+ },
+ "nflux_forest": {
+  "long_name": "N fluxes"
+ },
+ "nflux_natural": {
+  "long_name": "N fluxes"
+ },
+ "nflux_pasture": {
+  "long_name": "N fluxes"
+ },
+ "nflux_peatland": {
+  "long_name": "N fluxes"
+ },
+ "ngases": {
+  "long_name": "Annual nitrogen gases"
+ },
+ "nlitter": {
+  "long_name": "Litter nitrogen"
+ },
+ "nmass": {
+  "long_name": "N biomass"
+ },
+ "npool": {
+  "long_name": "Soil nitrogen"
+ },
+ "npool_cropland": {
+  "long_name": "Soil N"
+ },
+ "npool_forest": {
+  "long_name": "Soil N"
+ },
+ "npool_natural": {
+  "long_name": "Soil N"
+ },
+ "npool_pasture": {
+  "long_name": "Soil N"
+ },
+ "npool_peatland": {
+  "long_name": "Soil N"
+ },
+ "nppGrass_monthly": {
+  "long_name": "Net Primary Production on grass tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "nppLeaf_monthly": {
+  "long_name": "NPP allocated to leaf growth",
+  "units": "kg C m-2 s-1"
+ },
+ "nppLut_monthly": {
+  "long_name": "Net primary productivity on land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "nppOther_monthly": {
+  "long_name": "NPP allocated to other compartments including reproduction",
+  "units": "kg C m-2 s-1"
+ },
+ "nppRoot_monthly": {
+  "long_name": "NPP allocated to fine root growth",
+  "units": "kg C m-2 s-1"
+ },
+ "nppShrub_monthly": {
+  "long_name": "Net Primary Production on Shrub Tiles",
+  "units": "kg m-2 s-1"
+ },
+ "nppStem_monthly": {
+  "long_name": "NPP allocated to above-ground wood growth",
+  "units": "kg C m-2 s-1"
+ },
+ "nppTree_monthly": {
+  "long_name": "Net Primary Production on tree tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "npp_monthly": {
+  "long_name": "Net Primary Production",
+  "units": "kg C m-2 s-1"
+ },
+ "nsources": {
+  "long_name": "Annual nitrogen sources"
+ },
+ "nstand_sts": {
+  "long_name": "stand type stand number"
+ },
+ "nuptake": {
+  "long_name": "Annual nitrogen uptake"
+ },
+ "nwdFracLut_monthly": {
+  "long_name": "Fraction of land use tile that is non-woody vegetation (e.g. herbaceous crops)",
+  "units": "kg m-2 s-1"
+ },
+ "pastureFracC3Phen_monthly": {
+  "long_name": "C3 pasture fraction, phenology-weighted",
+  "units": "%"
+ },
+ "pastureFracC3_monthly": {
+  "long_name": "C3 Pasture Area Percentage",
+  "units": "%"
+ },
+ "pastureFracC3_yearly": {
+  "long_name": "Gridcell fraction covered by C3 pasture (stand-area)",
+  "units": "%"
+ },
+ "pastureFracC4Phen_monthly": {
+  "long_name": "C4 pasture fraction, phenology-weighted",
+  "units": "%"
+ },
+ "pastureFracC4_monthly": {
+  "long_name": "C4 Pasture Area Percentage",
+  "units": "%"
+ },
+ "pastureFracC4_yearly": {
+  "long_name": "Gridcell fraction covered by C4 pasture (stand-area)",
+  "units": "%"
+ },
+ "pastureFracPhen_monthly": {
+  "long_name": "Pasture fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "pastureFrac_monthly": {
+  "long_name": "Gridcell fraction covered by pasture",
+  "units": "-"
+ },
+ "pastureFrac_yearly": {
+  "long_name": "Gridcell fraction covered by pasture",
+  "units": "-"
+ },
+ "pasturefrac_yearly": {
+  "long_name": "Gridcell fraction covered by pasture",
+  "units": "-"
+ },
+ "phu": {
+  "long_name": "Crop potential heat units"
+ },
+ "prCrop_daily": {
+  "long_name": "Precipitation on crop",
+  "units": "kg m-2 s-1"
+ },
+ "prCrop_monthly": {
+  "long_name": "Precipitation on crop",
+  "units": "kg m-2 s-1"
+ },
+ "prveg_daily": {
+  "long_name": "Total intercepted water on Canopy",
+  "units": "kg m-2 s-1"
+ },
+ "prveg_monthly": {
+  "long_name": "Total intercepted water on Canopy (interception)",
+  "units": "kg m-2 s-1"
+ },
+ "rGrowth_monthly": {
+  "long_name": "Autotrophic Respiration associated to growth",
+  "units": "kg C m-2 s-1"
+ },
+ "rMaint_monthly": {
+  "long_name": "Autotrophic Respiration",
+  "units": "kg C m-2 s-1"
+ },
+ "raGrass_monthly": {
+  "long_name": "Autotrophic respiration on grass tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "raLeaf_monthly": {
+  "long_name": "Autotrophic Respiration from leaves",
+  "units": "kg C m-2 s-1"
+ },
+ "raLut_monthly": {
+  "long_name": "Plant respiration on land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "raOther_monthly": {
+  "long_name": "Autotrophic Respiration from other compartments",
+  "units": "kg C m-2 s-1"
+ },
+ "raRoot_monthly": {
+  "long_name": "Autotrophic Respiration from roots",
+  "units": "kg C m-2 s-1"
+ },
+ "raShrub_monthly": {
+  "long_name": "Plant Autotrophic Respiration on Shrub Tiles",
+  "units": "kg m-2 s-1"
+ },
+ "raStem_monthly": {
+  "long_name": "Autotrophic Respiration from stem",
+  "units": "kg C m-2 s-1"
+ },
+ "raTree_monthly": {
+  "long_name": "Autotrophic respiration on tree tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "ra_monthly": {
+  "long_name": "Autotrophic (Plant) Respiration",
+  "units": "kg C m-2 s-1"
+ },
+ "residualFrac_monthly": {
+  "long_name": "Gridcell fraction covered by non-vegetation and non-bare-soil",
+  "units": "-"
+ },
+ "residualFrac_yearly": {
+  "long_name": "Gridcell fraction covered by by non-vegetation and non-bare-soil",
+  "units": "-"
+ },
+ "rhGrass_monthly": {
+  "long_name": "Heterotrophic respiration from grass tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "rhLitter_monthly": {
+  "long_name": "Litter Respiration",
+  "units": "kg C m-2 s-1"
+ },
+ "rhLut_monthly": {
+  "long_name": "Soil heterotrophic respiration on land use tile",
+  "units": "kg m-2 s-1"
+ },
+ "rhShrub_monthly": {
+  "long_name": "Heterotrophic respiration from shrub tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "rhSoil_monthly": {
+  "long_name": "Soil Respiration",
+  "units": "kg C m-2 s-1"
+ },
+ "rhTree_monthly": {
+  "long_name": "Heterotrophic respiration from tree tiles",
+  "units": "kg C m-2 s-1"
+ },
+ "rh_monthly": {
+  "long_name": "Heterotrophic Respiration",
+  "units": "kg C m-2 s-1"
+ },
+ "runoff": {
+  "long_name": "Runoff"
+ },
+ "sdate1": {
+  "long_name": "Crop first sowing date"
+ },
+ "sdate2": {
+  "long_name": "Crop second sowing date"
+ },
+ "seasonality": {
+  "long_name": "Seasonality"
+ },
+ "shrubFracPhen_monthly": {
+  "long_name": "Shrub fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "shrubFrac_monthly": {
+  "long_name": "Gridcell fraction covered by shrub",
+  "units": "-"
+ },
+ "shrubFrac_yearly": {
+  "long_name": "Gridcell fraction covered by shrubs",
+  "units": "-"
+ },
+ "simfireanalysis": {
+  "long_name": "SIMFIRE analytics"
+ },
+ "simfireanalysis_out": {
+  "long_name": "SIMFIRE analytics"
+ },
+ "snc_daily": {
+  "long_name": "Snow Area Percentage",
+  "units": "%"
+ },
+ "snc_monthly": {
+  "long_name": "Snow Area Percentage",
+  "units": "%"
+ },
+ "snc_yearly": {
+  "long_name": "Snow Area Percentage",
+  "units": "%"
+ },
+ "snd_daily": {
+  "long_name": "Snow Depth",
+  "units": "m"
+ },
+ "snd_monthly": {
+  "long_name": "Snow Depth",
+  "units": "m"
+ },
+ "snw_daily": {
+  "long_name": "Surface Snow Amount",
+  "units": "kg m-2"
+ },
+ "snw_monthly": {
+  "long_name": "Surface Snow Amount",
+  "units": "kg m-2"
+ },
+ "soil_nflux": {
+  "long_name": "Annual soil N fluxes"
+ },
+ "soil_nflux_cropland": {
+  "long_name": "Soil N fluxes"
+ },
+ "soil_nflux_forest": {
+  "long_name": "Soil N fluxes"
+ },
+ "soil_nflux_natural": {
+  "long_name": "Soil N fluxes"
+ },
+ "soil_nflux_pasture": {
+  "long_name": "Soil N fluxes"
+ },
+ "soil_npool": {
+  "long_name": "Annual soil N pools"
+ },
+ "soiltemp25cm": {
+  "long_name": "Soil temperature (25cm depth)"
+ },
+ "speciesdiam": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "speciesdiam_forest": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "speciesdiam_natural": {
+  "long_name": "Mean species diameter (cm)"
+ },
+ "speciesheights": {
+  "long_name": "Mean species heights"
+ },
+ "speciesheights_forest": {
+  "long_name": "Mean species height (m)"
+ },
+ "speciesheights_natural": {
+  "long_name": "Mean species height (m)"
+ },
+ "sweLut_monthly": {
+  "long_name": "Snow Water Equivalent on land use tile",
+  "units": "kg m-2"
+ },
+ "tot_runoff": {
+  "long_name": "Runoff"
+ },
+ "tran_daily": {
+  "long_name": "Transpiration",
+  "units": "kg m-2 s-1"
+ },
+ "tran_monthly": {
+  "long_name": "Transpiration",
+  "units": "kg m-2 s-1"
+ },
+ "treeFracBdlDcdPhen_monthly": {
+  "long_name": "Broadleaf deciduous tree fraction, phenology-weighted",
+  "units": "%"
+ },
+ "treeFracBdlDcd_monthly": {
+  "long_name": "Broadleaf deciduous tree fraction",
+  "units": "%"
+ },
+ "treeFracBdlDcd_yearly": {
+  "long_name": "Gridcell fraction covered by broadleaf deciduous trees (stand-area)",
+  "units": "%"
+ },
+ "treeFracBdlEvgPhen_monthly": {
+  "long_name": "Broadleaf evergreen tree fraction, phenology-weighted",
+  "units": "%"
+ },
+ "treeFracBdlEvg_monthly": {
+  "long_name": "Broadleaf evergreen tree fraction",
+  "units": "%"
+ },
+ "treeFracBdlEvg_yearly": {
+  "long_name": "Gridcell fraction covered by broadleaf evergreen trees (stand-area)",
+  "units": "%"
+ },
+ "treeFracNdlDcdPhen_monthly": {
+  "long_name": "Needleleaf deciduous tree fraction, phenology-weighted",
+  "units": "%"
+ },
+ "treeFracNdlDcd_monthly": {
+  "long_name": "Needleleaf deciduous tree fraction",
+  "units": "%"
+ },
+ "treeFracNdlDcd_yearly": {
+  "long_name": "Gridcell fraction covered by needleleaf deciduous trees (stand-area)",
+  "units": "%"
+ },
+ "treeFracNdlEvgPhen_monthly": {
+  "long_name": "Needleleaf evergreen tree fraction, phenology-weighted",
+  "units": "%"
+ },
+ "treeFracNdlEvg_monthly": {
+  "long_name": "Needleleaf evergreen tree fraction",
+  "units": "%"
+ },
+ "treeFracNdlEvg_yearly": {
+  "long_name": "Gridcell fraction covered by needleleaf evergreen trees (stand-area)",
+  "units": "%"
+ },
+ "treeFracPhen_monthly": {
+  "long_name": "Tree fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "treeFrac_monthly": {
+  "long_name": "Gridcell fraction covered by trees",
+  "units": "-"
+ },
+ "treeFrac_yearly": {
+  "long_name": "Gridcell fraction covered by trees",
+  "units": "-"
+ },
+ "tsl_daily": {
+  "long_name": "Temperature of Soil",
+  "units": "K"
+ },
+ "tsl_monthly": {
+  "long_name": "Top soil layer temperature",
+  "units": "C"
+ },
+ "vegFracPhen_monthly": {
+  "long_name": "Vegetated fraction, phenology/LAI-weighted (canopy-active)",
+  "units": "%"
+ },
+ "vegFrac_monthly": {
+  "long_name": "Gridcell fraction covered by any kind of vegetation",
+  "units": "-"
+ },
+ "vegFrac_yearly": {
+  "long_name": "Gridcell fraction covered by vegetation",
+  "units": "-"
+ },
+ "vegHeightGrass_monthly": {
+  "long_name": "Height of Grass Vegetation",
+  "units": "m"
+ },
+ "vegHeightShrub_monthly": {
+  "long_name": "Height of Shrub Vegetation",
+  "units": "m"
+ },
+ "vegHeightTree_monthly": {
+  "long_name": "Average tree height",
+  "units": "m"
+ },
+ "vegHeight_monthly": {
+  "long_name": "Height of Vegetation",
+  "units": "m"
+ },
+ "vmaxnlim": {
+  "long_name": "Annual nitrogen limitation on vm"
+ },
+ "wetlandCH4_monthly": {
+  "long_name": "Net CH4 flux to atmosphere from wetlands",
+  "units": "kg m-2 s-1"
+ },
+ "wetlandCH4cons_monthly": {
+  "long_name": "Wetland CH4 consumption by methanotrophy",
+  "units": "kg m-2 s-1"
+ },
+ "wetlandCH4prod_monthly": {
+  "long_name": "Wetland CH4 production by methanogenesis",
+  "units": "kg m-2 s-1"
+ },
+ "wetlandFrac_monthly": {
+  "long_name": "Wetland fraction of gridcell",
+  "units": "%"
+ },
+ "wetland_water_added": {
+  "long_name": "Wetland water added"
+ },
+ "wflux": {
+  "long_name": "Annual water fluxes"
+ },
+ "wpool": {
+  "long_name": "Soil water"
+ },
+ "yield": {
+  "long_name": "Crop yield"
+ },
+ "yield1": {
+  "long_name": "Crop first yield"
+ },
+ "yield2": {
+  "long_name": "Crop second yield"
+ }
+}

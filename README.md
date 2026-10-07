@@ -19,6 +19,7 @@ lpjg2nc2 is a powerful tool for converting LPJ-GUESS output files (.out) to NetC
 * **Time Dimensions**: Handle time series data (years, months, and days) with proper cftime support for historical dates
 * **Error Logging**: Comprehensive error tracking and logging during parallel processing
 * **Grid Remapping**: Option to remap to regular global grids using CDO
+* **Variable Metadata**: `long_name` and `units` attributes taken from LPJ-GUESS's own output definitions (`modules/*.cpp`)
 * **Data Analysis**: Built-in analysis of NaN values to understand data sparsity in global datasets
 * **Test Mode**: Option to process specific files for testing
 
@@ -72,16 +73,23 @@ lpjg2nc -p /path/to/lpj_guess_runs/ -v -o /path/to/output/
 ### Remapping to Regular Grid
 
 ```bash
-lpjg2nc -p /path/to/lpj_guess_runs/ --remap 1
-# or specify grid dimensions
-lpjg2nc -p /path/to/lpj_guess_runs/ --remap 360x180
+lpjg2nc -p /path/to/lpj_guess_runs/ --remap
+# same as the default: conservative remapping to a 1 degree grid
+lpjg2nc -p /path/to/lpj_guess_runs/ --remap remapcon,r360x180
+# any CDO remap operator and grid
+lpjg2nc -p /path/to/lpj_guess_runs/ --remap remapnn,global_1
 ```
 
-### Testing with a Specific File
+After a successful remap the unstructured NetCDF file is deleted, unless
+`--nc_keep_unstruc` is given.
+
+### Converting a Single Variable
 
 ```bash
-lpjg2nc -p /path/to/lpj_guess_runs/ -f /path/to/runs/run1/output/somefile.out -v
+lpjg2nc -p /path/to/lpj_guess_runs/ -f netAtmosLandCO2Flux_monthly.out -v
 ```
+
+All files of that name under `<path>/run*/output` are combined into one global file.
 
 ## 🛠️ Command Line Arguments
 
@@ -89,23 +97,16 @@ lpjg2nc -p /path/to/lpj_guess_runs/ -f /path/to/runs/run1/output/somefile.out -v
 * `-p PATH, --path PATH`: Path to the directory containing run* folders
 
 ### Optional Arguments
-* `-f FILE, --file FILE`: Process a specific file (for testing)
-* `-o OUTPUT, --output OUTPUT`: Output directory for NetCDF files
+* `-f FILE, --file FILE`: Process a single variable globally: a basename (e.g. `netAtmosLandCO2Flux_monthly.out`) or a path to one such file; all matching files under `<path>/run*/output` are combined
+* `-g GRIDS, --grids GRIDS`: Path to a `grids.nc` file providing the grid geometry (default: `<path>/grids.nc`, if it exists)
+* `-o OUTPUT, --output OUTPUT`: Output directory for NetCDF files (default: `../../outdata/lpj_guess` relative to the input path)
 * `-v, --verbose`: Increase output verbosity
-* `--remap RES`: Remap output to a regular global grid using CDO (specify resolution in degrees or XxY dimensions)
+* `--remap [OPERATOR,GRID]`: Remap output using CDO, e.g. `remapcon,r360x180` (default if no value is given) or `remapnn,global_1`
+* `--nc_keep_unstruc`: Keep the unstructured (pre-remap) NetCDF file alongside the remapped one (only with `--remap`)
+* `--nc_rm_ascii`: Delete the `.out` input files of a variable once its NetCDF file was written successfully (and remapped, if `--remap` is given); by default they are kept
 * `--test {ifs_input}`: Test with specific file pattern (e.g., ifs_input.out)
 * `-j JOBS, --jobs JOBS`: Number of parallel jobs for outer parallelization (patterns), default: 8
-* `--inner-jobs INNER_JOBS`: Number of parallel jobs for inner parallelization, default: 16
-* `--chunk-size CHUNK_SIZE`: Chunk size for processing arrays, default: 50000
 * `--pattern PATTERN`: Specific pattern to process (internal use for parallelization)
-
-### Recommended Settings
-
-| Environment            | --jobs (-j) | --inner-jobs | --chunk-size |
-|------------------------|-------------|-------------|---------------|
-| Desktop (16GB RAM)     | 4           | 8           | 25000         |
-| Workstation (32GB RAM) | 8           | 16          | 50000         |
-| HPC Node (128GB+ RAM)  | 8           | 64          | 75000         |
 
 ## 📚 Documentation
 
