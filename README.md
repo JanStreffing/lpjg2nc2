@@ -8,7 +8,7 @@
 
 lpjg2nc2 is a powerful tool for converting LPJ-GUESS output files (.out) to NetCDF format. It efficiently searches for run* folders in a given path, finds .out files inside their output directories, and converts them to the widely-used NetCDF format for easier analysis and visualization.
 
-## 🚀 Key Features
+## Key Features
 
 * **Efficient Processing**: Convert LPJ-GUESS .out files to NetCDF with proper coordinates and metadata
 * **High Performance**: Vectorized implementation delivers up to 20× speedup compared to point-by-point processing
@@ -23,7 +23,7 @@ lpjg2nc2 is a powerful tool for converting LPJ-GUESS output files (.out) to NetC
 * **Data Analysis**: Built-in analysis of NaN values to understand data sparsity in global datasets
 * **Test Mode**: Option to process specific files for testing
 
-## 📦 Installation
+## Installation
 
 ### From PyPI (recommended)
 
@@ -39,7 +39,7 @@ cd lpjg2nc2
 pip install -e .
 ```
 
-## 📋 Requirements
+## Requirements
 
 * Python 3.8+
 * Dependencies (automatically installed):
@@ -50,7 +50,7 @@ pip install -e .
   * tqdm>=4.61.0
 * Optional: Climate Data Operators (CDO) for remapping capabilities
 
-## 🔍 Usage
+## Usage
 
 ### Basic Conversion
 
