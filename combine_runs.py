@@ -62,8 +62,8 @@ def derive_paths(run_path):
     parent = os.path.dirname(run_path)  # .../run_YYYYMMDD-YYYYMMDD
     run_dir_name = os.path.basename(parent)  # run_YYYYMMDD-YYYYMMDD
     
-    # Extract date range
-    match = re.match(r'run_(\d{8}-\d{8})', run_dir_name)
+    # Extract date range (coupling chains name it run_<model>_YYYYMMDD-YYYYMMDD)
+    match = re.match(r'run_(?:\w+_)?(\d{8}-\d{8})', run_dir_name)
     if match:
         date_range = match.group(1)
     else:
