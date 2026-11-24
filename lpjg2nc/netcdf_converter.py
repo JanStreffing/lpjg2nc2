@@ -70,6 +70,18 @@ def time_to_numeric(times, units='days since 0001-01-01', calendar='proleptic_gr
         return np.array(numeric_times, dtype=np.float64)
 
 
+def time_step_chunks(var):
+    """
+    Chunk shape with one time step per chunk and the full extent of every other dimension.
+
+    CDO reads and remaps one time step at a time. With the netCDF default chunking (here
+    609 days x 2 layers x 1693 points for a daily soil file) every step makes older CDO
+    versions such as 2.0.5 decompress chunks covering hundreds of days again; a 15-layer
+    daily file then takes hours to remap instead of seconds.
+    """
+    return tuple(1 if dim == 'time' else max(size, 1) for dim, size in zip(var.dims, var.shape))
+
+
 def get_dayofyear(t):
     """
     Get day of year from a time object.
@@ -1331,6 +1343,9 @@ def process_2d_file(file_paths, output_path, grid_info=None, verbose=False, inne
             
             # Set encoding for compression
             encoding = {var: {'zlib': True, 'complevel': 4} for var in ds.data_vars}
+            for var in ds.data_vars:
+                if 'time' in ds[var].dims:
+                    encoding[var]['chunksizes'] = time_step_chunks(ds[var])
 
             # Write to NetCDF with proper encoding
             ds.to_netcdf(full_output_path, encoding=encoding, unlimited_dims=['time'])
@@ -1644,7 +1659,8 @@ def process_3d_file(file_paths, output_path, grid_info=None, verbose=False, inne
         'depth': {'dtype': 'float32'},
         'lat': {'dtype': 'float32'},
         'lon': {'dtype': 'float32'},
-        var_name: {'zlib': True, 'complevel': 4, 'dtype': 'float32'}
+        var_name: {'zlib': True, 'complevel': 4, 'dtype': 'float32',
+                   'chunksizes': time_step_chunks(ds[var_name])}
     }
     
     ds.to_netcdf(full_output_path, encoding=encoding, format='NETCDF4')
